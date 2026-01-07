@@ -1,0 +1,50 @@
+/* Full page background */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #fff;
+}
+
+/* Registration Card */
+.register-card {
+    background: rgba(18, 18, 18, 0.95);
+    padding: 35px;
+    width: 380px;
+    border-radius: 15px;
+    box-shadow: 0 0 25px rgba(13, 202, 240, 0.25);
+}
+
+/* Title */
+.netra-title {
+    color: #0dcaf0;
+    letter-spacing: 2px;
+    font-weight: bold;
+}
+
+/* Inputs */
+.dark-input {
+    background-color: #1f1f1f;
+    border: 1px solid #333;
+    color: #fff;
+}
+
+.dark-input:focus {
+    background-color: #1f1f1f;
+    border-color: #0dcaf0;
+    box-shadow: 0 0 8px rgba(13,202,240,0.6);
+    color: #fff;
+}
+
+/* Button */
+.btn-security {
+    background-color: #0dcaf0;
+    border: none;
+    color: #000;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.btn-security:hover {
+    background-color: #0bb3d6;
+}
