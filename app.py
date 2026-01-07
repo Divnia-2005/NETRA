@@ -1,30 +1,44 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
+from dotenv import load_dotenv
+from pathlib import Path
 import mysql.connector
 import smtplib
 import random
+import os
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 
-# ---------------- EMAIL CONFIG ----------------
-SMTP_EMAIL = "diviniamarioantony2028@mca.ajce.in"
-SMTP_PASSWORD = "jzkk gued ilto yvcj"
+# ---------------- LOAD ENV (FORCED PATH) ----------------
+load_dotenv(Path(__file__).parent / "credential.env")
+
+
+# ---------------- APP CONFIG ----------------
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+if not GOOGLE_CLIENT_ID:
+    raise RuntimeError("GOOGLE_CLIENT_ID missing. Check .env")
+
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+if not GOOGLE_CLIENT_ID:
+    raise RuntimeError("GOOGLE_CLIENT_ID missing. Check .env")
 
 # ---------------- DATABASE CONNECTION ----------------
 def get_db():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",
-        database="Netra"
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME")
     )
-
-# ---------------- APP CONFIG ----------------
-app = Flask(__name__)
-app.secret_key = "netra_secret_key_123"
-
-GOOGLE_CLIENT_ID = "161607308272-lt5t46on0fr93kmdsa0kdpma3jr5457m.apps.googleusercontent.com"
 
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
@@ -63,8 +77,7 @@ def login():
 # ---------------- GOOGLE LOGIN ----------------
 @app.route("/auth/google/callback", methods=["POST"])
 def google_callback():
-    data = request.get_json()
-    token = data.get("token")
+    token = request.json.get("token")
 
     try:
         idinfo = id_token.verify_oauth2_token(
@@ -98,7 +111,6 @@ def google_callback():
         conn.close()
 
         session["user"] = user
-
         return jsonify({"success": True, "redirect_url": "/dashboard"})
 
     except Exception as e:
@@ -147,7 +159,6 @@ def forgot_password():
 
         send_otp_email(email, otp)
         session["reset_email"] = email
-
         return redirect(url_for("verify_otp"))
 
     return render_template("forgot_password.html")
@@ -171,17 +182,11 @@ def verify_otp():
         user = cur.fetchone()
 
         if not user or user["reset_otp"] != entered_otp:
-            cur.close()
-            conn.close()
             return render_template("verify_otp.html", error="Invalid OTP")
 
         if datetime.now() > user["otp_expiry"]:
-            cur.close()
-            conn.close()
             return render_template("verify_otp.html", error="OTP expired")
 
-        cur.close()
-        conn.close()
         return redirect(url_for("reset_password"))
 
     return render_template("verify_otp.html")
