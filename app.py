@@ -1,45 +1,46 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
-from dotenv import load_dotenv
-from pathlib import Path
 import mysql.connector
 import smtplib
 import random
-import os
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+from pathlib import Path
 
-# ---------------- LOAD ENV (FORCED PATH) ----------------
-load_dotenv(Path(__file__).parent / "credential.env")
+# Load credential.env from same directory
+env_path = Path(__file__).resolve().parent / "credential.env"
+load_dotenv(dotenv_path=env_path)
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
+# ---------------- EMAIL CONFIG ----------------
+
+
+# ---------------- DATABASE CONNECTION ----------------
+def get_db():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="Netra"
+    )
 
 # ---------------- APP CONFIG ----------------
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+# ---------------- ROUTES ----------------
+@app.route("/")
+def home():
+    return render_template("landing.html")
 
-if not GOOGLE_CLIENT_ID:
-    raise RuntimeError("GOOGLE_CLIENT_ID missing. Check .env")
-
-SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-
-if not GOOGLE_CLIENT_ID:
-    raise RuntimeError("GOOGLE_CLIENT_ID missing. Check .env")
-
-# ---------------- DATABASE CONNECTION ----------------
-def get_db():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
-    )
-
+@app.route("/landing")
+def landing():
+    return render_template("landing.html")
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -70,14 +71,48 @@ def register():
     return render_template("register.html")
 
 # ---------------- LOGIN ----------------
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    return render_template("login.html", client_id=GOOGLE_CLIENT_ID)
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
 
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            "SELECT * FROM users WHERE email=%s AND password=%s",
+            (email, password)
+        )
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not user:
+            return render_template("login.html", error="Invalid email or password")
+
+        # Store session
+        session["user"] = {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"],
+            "role": user["role"]
+        }
+
+        # Role-based redirect
+        if user["role"] == "admin":
+            return redirect(url_for("dashboard_admin"))
+        else:
+            return redirect(url_for("dashboard_officer"))
+
+    return render_template("login.html",client_id=GOOGLE_CLIENT_ID)
+
+
+# ---------------- GOOGLE LOGIN ----------------
 # ---------------- GOOGLE LOGIN ----------------
 @app.route("/auth/google/callback", methods=["POST"])
 def google_callback():
-    token = request.json.get("token")
+    data = request.get_json()
+    token = data.get("token")
 
     try:
         idinfo = id_token.verify_oauth2_token(
@@ -111,18 +146,19 @@ def google_callback():
         conn.close()
 
         session["user"] = user
-        return jsonify({"success": True, "redirect_url": "/dashboard"})
+
+        return jsonify({
+            "success": True,
+            "redirect_url": "/dashboard_officer"
+        })
 
     except Exception as e:
         print("Google Login Error:", e)
-        return jsonify({"success": False}), 401
+        return jsonify({
+            "success": False,
+            "error": "Google authentication failed"
+        }), 401
 
-# ---------------- DASHBOARD ----------------
-@app.route("/dashboard")
-def dashboard():
-    if "user" not in session:
-        return redirect(url_for("login"))
-    return render_template("dashboard.html", user=session["user"])
 
 # ---------------- LOGOUT ----------------
 @app.route("/logout")
@@ -159,6 +195,7 @@ def forgot_password():
 
         send_otp_email(email, otp)
         session["reset_email"] = email
+
         return redirect(url_for("verify_otp"))
 
     return render_template("forgot_password.html")
@@ -182,11 +219,17 @@ def verify_otp():
         user = cur.fetchone()
 
         if not user or user["reset_otp"] != entered_otp:
+            cur.close()
+            conn.close()
             return render_template("verify_otp.html", error="Invalid OTP")
 
         if datetime.now() > user["otp_expiry"]:
+            cur.close()
+            conn.close()
             return render_template("verify_otp.html", error="OTP expired")
 
+        cur.close()
+        conn.close()
         return redirect(url_for("reset_password"))
 
     return render_template("verify_otp.html")
@@ -231,6 +274,18 @@ def send_otp_email(to_email, otp):
     server.login(SMTP_EMAIL, SMTP_PASSWORD)
     server.send_message(msg)
     server.quit()
+# ---------------- DASHBOARDS ----------------
+@app.route("/dashboard_admin")
+def dashboard_admin():
+    if "user" not in session or session["user"]["role"] != "admin":
+        return redirect(url_for("login"))
+    return render_template("dashboard_admin.html")
+
+@app.route("/dashboard_officer")
+def dashboard_officer():
+    if "user" not in session or session["user"]["role"] != "officer":
+        return redirect(url_for("login"))
+    return render_template("dashboard_officer.html")
 
 # ---------------- RUN APP ----------------
 if __name__ == "__main__":

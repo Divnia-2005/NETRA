@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -258,33 +260,12 @@
         <div class="divider"><span>OR</span></div>
 
         <!-- GOOGLE LOGIN -->
-        <!-- <div id="g_id_onload"
+        <div id="g_id_onload"
              data-client_id="{{ client_id }}"
              data-callback="handleCredentialResponse">
         </div>
 
-        <div class="g_id_signin" data-theme="dark" data-size="large"></div> -->
-        <div id="google-button"></div>
-
-<script src="https://accounts.google.com/gsi/client"></script>
-<script>
-window.onload = function () {
-    google.accounts.id.initialize({
-        client_id: "{{ client_id }}",
-        callback: handleCredentialResponse
-    });
-
-    google.accounts.id.renderButton(
-        document.getElementById("google-button"),
-        {
-            theme: "dark",
-            size: "large",
-            width: 250
-        }
-    );
-};
-</script>
-
+        <div class="g_id_signin" data-theme="dark" data-size="large"></div>
 
         <p class="google-info">
             Sign in using your Google account for secure authentication
@@ -308,9 +289,10 @@ window.onload = function () {
         .then(res => res.json())
         .then(data => {
             if (data.success === true) {
-                window.location.href = data.redirect_url;
+                window.location.href = data.redirect_url ;
             } else {
-                alert(data.error);
+                alert(data.error || "Authentication failed. Please try again.");
+
             }
         })
         .catch(err => {

@@ -1,17 +1,264 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Officer Dashboard</title>
+  <meta charset="UTF-8">
+  <title>Officer Dashboard — NETRA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body { background-color: #102216; color: #e5ffe9; }
+    .bg-main { background-color: #102216; }
+    .bg-sidebar { background-color: #112217; }
+    .bg-card { background-color: #1a2e22; }
+    .accent { color: #13ec5b; }
+
+    .nav-btn {
+      display: block;
+      padding: 10px;
+      border-radius: 6px;
+      color: #d1fae5;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .nav-btn:hover {
+      background-color: #1a2e22;
+      color: #13ec5b;
+    }
+    .nav-btn.active {
+      background-color: #1a2e22;
+      color: #13ec5b;
+      font-weight: 600;
+    }
+  </style>
 </head>
-<body>
 
-<h2>Security Officer Dashboard</h2>
+<body class="h-screen flex overflow-hidden bg-main">
 
-<ul>
-    <li>Live Alerts</li>
-    <li>Detection Snapshots</li>
-    <li>Acknowledge Alerts</li>
-</ul>
+<!-- SIDEBAR -->
+<aside class="w-64 bg-sidebar p-4 flex flex-col justify-between">
+  <div>
+    <h2 class="text-xl font-bold accent mb-6">NETRA Officer</h2>
+    <!-- OFFICER PROFILE CARD -->
+<div class="flex items-center gap-3 bg-card p-3 rounded mb-4">
+  <img id="officerPic"
+       src="https://via.placeholder.com/60"
+       class="w-14 h-14 rounded-full object-cover border border-green-400">
+  <div>
+    <p id="officerName" class="font-semibold">Officer User</p>
+    <p class="text-xs text-green-300">Security Officer</p>
+  </div>
+</div>
+
+
+    <nav class="space-y-2">
+      <button class="nav-btn active" onclick="showSection('dashboard', this)">Dashboard</button>
+      <button class="nav-btn" onclick="showSection('alerts', this)">Alert History</button>
+      <button class="nav-btn" onclick="showSection('map', this)">Map View</button>
+      <button class="nav-btn" onclick="showSection('reports', this)">Reports</button>
+      <button class="nav-btn" onclick="showSection('settings', this)">Settings</button>
+    </nav>
+  </div>
+<button class="nav-btn" onclick="showSection('profile', this)">
+  Profile
+</button>
+
+  <a href="/logout" class="text-red-400 hover:text-red-300">
+    Logout
+  </a>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="flex-1 p-6 overflow-y-auto">
+
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="section">
+    <h1 class="text-2xl font-bold accent mb-1">Command Center</h1>
+    <p class="text-sm text-[#a7f3d0] mb-6">System Online</p>
+
+    <!-- QUICK ACTIONS -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <button class="bg-red-600/20 text-red-400 border border-red-600 px-4 py-3 rounded hover:bg-red-600 hover:text-white">Trigger Alarm</button>
+      <button class="bg-yellow-500/20 text-yellow-400 border border-yellow-500 px-4 py-3 rounded hover:bg-yellow-500 hover:text-black">Spotlight</button>
+      <button class="bg-card border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]">Broadcast</button>
+      <button class="bg-card border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]">Unlock Gates</button>
+    </div>
+
+    <!-- LIVE FEEDS -->
+    <h2 class="text-xl font-bold mb-4">Live Surveillance</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-black h-48 flex items-center justify-center rounded">Camera 1</div>
+      <div class="bg-black h-48 flex items-center justify-center rounded">Camera 2</div>
+    </div>
+  </section>
+
+  <!-- ALERT HISTORY -->
+  <section id="alerts" class="section hidden">
+    <h2 class="text-xl font-bold mb-4">Alert History</h2>
+    <div class="space-y-3">
+      <div class="bg-card p-4 rounded border-l-4 border-red-500">
+        <p class="font-bold">Intruder Detected</p>
+        <p class="text-sm text-gray-300">Restricted zone access</p>
+      </div>
+      <div class="bg-card p-4 rounded border-l-4 border-yellow-400">
+        <p class="font-bold">Door Forced Open</p>
+        <p class="text-sm text-gray-300">Back entrance</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAP VIEW -->
+  <section id="map" class="section hidden">
+    <h2 class="text-xl font-bold mb-4">Map View</h2>
+    <div class="bg-card h-64 flex items-center justify-center rounded">
+      Facility Map Placeholder
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section id="reports" class="section hidden">
+    <h2 class="text-xl font-bold mb-4">Reports</h2>
+    <div class="bg-card p-4 rounded">
+      Daily & Incident Reports will appear here
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="section hidden">
+    <h2 class="text-xl font-bold mb-4">Settings</h2>
+    <label class="block mb-4">
+      Alert Volume
+      <input type="range" class="w-full mt-2">
+    </label>
+    <button class="bg-[#13ec5b] text-black px-4 py-2 rounded hover:bg-green-400">
+      Save Settings
+    </button>
+  </section>
+<!-- PROFILE -->
+<!-- PROFILE -->
+<section id="profile" class="section hidden flex justify-center">
+  <div class="bg-card p-6 rounded max-w-lg w-full">
+    <h2 class="text-xl font-bold mb-6 text-center">Officer Profile</h2>
+
+    <!-- Profile Picture -->
+    <div class="flex flex-col items-center gap-4 mb-6">
+      <img id="officerPicPreview"
+           src="https://via.placeholder.com/120"
+           class="w-28 h-28 rounded-full object-cover border-2 border-green-400">
+      <input type="file" accept="image/*" onchange="updateOfficerPic(event)">
+    </div>
+
+    <!-- Profile Fields -->
+    <div class="space-y-4">
+      <div>
+        <label class="text-sm">Username</label>
+        <input id="officerUsername"
+               class="w-full bg-[#102216] p-2 rounded"
+               placeholder="officer_username">
+      </div>
+
+      <div>
+        <label class="text-sm">Full Name</label>
+        <input id="officerProfileName"
+               class="w-full bg-[#102216] p-2 rounded"
+               placeholder="Officer Name">
+      </div>
+
+      <div>
+        <label class="text-sm">Role</label>
+        <input class="w-full bg-[#102216] p-2 rounded"
+               value="Security Officer" disabled>
+      </div>
+
+      <button onclick="saveOfficerProfile()"
+              class="bg-[#13ec5b] text-black px-4 py-2 rounded w-full hover:bg-green-400">
+        Save Profile
+      </button>
+
+      <p id="officerSavedMsg"
+         class="hidden text-green-400 text-sm text-center mt-2">
+        ✔ Profile updated successfully
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- JS -->
+<script>
+/* ---------- SECTION SWITCHING ---------- */
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(sec => {
+    sec.classList.add('hidden');
+  });
+
+  const target = document.getElementById(id);
+  if (target) target.classList.remove('hidden');
+
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.remove('active');
+  });
+  if (btn) btn.classList.add('active');
+}
+
+function updateOfficerPic(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    localStorage.setItem("officerPic", reader.result);
+    document.getElementById("officerPic").src = reader.result;
+    document.getElementById("officerPicPreview").src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* SAVE OFFICER PROFILE */
+function saveOfficerProfile() {
+  const username = document.getElementById("officerUsername").value.trim();
+  const name = document.getElementById("officerProfileName").value.trim();
+
+  if (!username || !name) {
+    alert("Please fill all fields");
+    return;
+  }
+
+  localStorage.setItem("officerUsername", username);
+  localStorage.setItem("officerName", name);
+
+  document.getElementById("officerName").innerText = name;
+
+  const msg = document.getElementById("officerSavedMsg");
+  msg.classList.remove("hidden");
+  setTimeout(() => msg.classList.add("hidden"), 2000);
+}
+
+/* LOAD OFFICER PROFILE DATA */
+window.addEventListener("load", () => {
+  if (localStorage.getItem("officerUsername")) {
+    document.getElementById("officerUsername").value =
+      localStorage.getItem("officerUsername");
+  }
+
+  if (localStorage.getItem("officerName")) {
+    document.getElementById("officerProfileName").value =
+      localStorage.getItem("officerName");
+    document.getElementById("officerName").innerText =
+      localStorage.getItem("officerName");
+  }
+
+  if (localStorage.getItem("officerPic")) {
+    document.getElementById("officerPic").src =
+      localStorage.getItem("officerPic");
+    document.getElementById("officerPicPreview").src =
+      localStorage.getItem("officerPic");
+  }
+});
+</script>
+
 
 </body>
 </html>

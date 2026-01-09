@@ -1,17 +1,406 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Dashboard</title>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard — NETRA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
 
-<h2>Security Officer Dashboard</h2>
+<body class="bg-[#102216] text-white h-screen flex overflow-hidden">
 
-<ul>
-    <li>Live Alerts</li>
-    <li>Detection Snapshots</li>
-    <li>Acknowledge Alerts</li>
-</ul>
+<!-- SIDEBAR -->
+<aside class="w-64 bg-[#112217] p-4 space-y-6">
+  <h2 class="text-xl font-bold text-[#13ec5b]">NETRA Admin</h2>
+<!-- ADMIN PROFILE CARD -->
+<div class="flex items-center gap-3 bg-[#1a2e22] p-3 rounded">
+  <img id="profilePic"
+       src="https://via.placeholder.com/60"
+       class="w-14 h-14 rounded-full object-cover border border-green-400">
+  <div>
+    <p id="adminName" class="font-semibold">Admin User</p>
+    <p class="text-xs text-green-300">Administrator</p>
+  </div>
+</div>
+
+    <nav class="space-y-2">
+        <button onclick="showSection('overview', this)" class="nav-btn active">Overview</button>
+        <button onclick="showSection('management', this)" class="nav-btn">Management</button>
+        <button onclick="showSection('alerts', this)" class="nav-btn">Alerts</button>
+        <button onclick="showSection('monitoring', this)" class="nav-btn">Live Monitoring</button>
+        <button onclick="showSection('health', this)" class="nav-btn">System Health</button>
+        <button onclick="showSection('config', this)" class="nav-btn">Configuration</button>
+        <button onclick="showSection('profile', this)" class="nav-btn">Profile</button>
+
+
+        <a href="/logout" class="block text-red-400 mt-6 hover:text-red-300">
+            Logout
+        </a>
+    </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="flex-1 p-6 overflow-y-auto space-y-8">
+
+<!-- OVERVIEW -->
+<section id="overview" class="section">
+    <h1 class="text-2xl font-bold mb-1">Security Overview</h1>
+    <p class="text-sm text-green-300 mb-6">All systems operational</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card">👤 Active Users<br><span class="stat">128</span></div>
+        <div class="card">📡 IoT Devices<br><span class="stat">42 Online</span></div>
+        <div class="card">🚨 Active Alerts<br><span class="stat text-red-400">3</span></div>
+        <div class="card">⚙️ System Load<br><span class="stat">38%</span></div>
+    </div>
+</section>
+
+<!-- MANAGEMENT -->
+<section id="management" class="section hidden">
+  <h1 class="section-title">Management Hub</h1>
+
+  <!-- ADD USER -->
+  <div class="panel mb-6">
+    <h3 class="panel-title">Add User</h3>
+    <div class="flex gap-2">
+      <input id="username" placeholder="Username"
+        class="bg-[#102216] p-2 rounded w-1/3">
+      <select id="role" class="bg-[#102216] p-2 rounded w-1/3">
+        <option>Admin</option>
+        <option>Officer</option>
+      </select>
+      <button onclick="addUser()" class="btn">Add</button>
+    </div>
+  </div>
+
+  <!-- USER LIST -->
+  <div class="panel">
+    <h3 class="panel-title">User List</h3>
+    <ul id="userList" class="space-y-2 text-sm"></ul>
+  </div>
+</section>
+<section id="alerts" class="section hidden">
+  <h1 class="section-title">Alerts & Logs</h1>
+
+  <div id="alertContainer" class="space-y-4">
+    <div class="alert red">
+      Unauthorized access detected – Sector 4
+      <button class="ack-btn" onclick="acknowledge(this)">Acknowledge</button>
+    </div>
+    <div class="alert yellow">
+      Motion detected after hours – Warehouse
+      <button class="ack-btn" onclick="acknowledge(this)">Acknowledge</button>
+    </div>
+  </div>
+
+  <p id="noAlerts" class="hidden text-green-400 mt-4">
+    ✅ No active alerts
+  </p>
+</section>
+
+<!-- MONITORING -->
+<section id="monitoring" class="section hidden">
+    <h1 class="section-title">Live Monitoring</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="cam">Camera Feed 1</div>
+        <div class="cam">Camera Feed 2</div>
+        <div class="cam">Camera Feed 3</div>
+        <div class="cam">Camera Feed 4</div>
+    </div>
+</section>
+
+<!-- HEALTH -->
+<section id="health" class="section hidden">
+    <h1 class="section-title">System Health</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card">CPU Usage<br><span class="stat">42%</span></div>
+        <div class="card">Memory Usage<br><span class="stat">6.2 GB</span></div>
+        <div class="card">Uptime<br><span class="stat">99.9%</span></div>
+    </div>
+</section>
+<section id="config" class="section hidden">
+  <h1 class="section-title">System Configuration</h1>
+
+  <label class="block mb-4">
+    Detection Sensitivity
+    <input id="sensitivity" type="range" class="w-full mt-2">
+  </label>
+
+  <label class="block mb-4">
+    Alert Threshold
+    <input id="threshold" type="number"
+      class="w-full bg-[#1a2e22] p-2 rounded">
+  </label>
+
+  <button onclick="saveSettings()" class="btn">Save Settings</button>
+
+  <p id="savedMsg" class="hidden text-green-400 mt-3">
+    ✔ Settings saved successfully
+  </p>
+</section>
+<!-- PROFILE SECTION -->
+<section id="profile" class="section hidden flex justify-center">
+  <div class="panel max-w-lg w-full">
+    <h1 class="section-title text-center">Admin Profile</h1>
+
+    <!-- Profile Picture -->
+    <div class="flex flex-col items-center gap-4 mb-6">
+      <img id="profilePreview"
+           src="https://via.placeholder.com/120"
+           class="w-28 h-28 rounded-full object-cover border-2 border-green-400">
+      <input type="file" accept="image/*" onchange="updateProfilePic(event)">
+    </div>
+
+    <!-- Profile Fields -->
+    <div class="space-y-4">
+      <div>
+        <label class="text-sm">Username</label>
+        <input id="profileUsername"
+               class="w-full bg-[#102216] p-2 rounded"
+               placeholder="admin_username">
+      </div>
+
+      <div>
+        <label class="text-sm">Full Name</label>
+        <input id="profileName"
+               class="w-full bg-[#102216] p-2 rounded"
+               placeholder="Admin Name">
+      </div>
+
+      <button onclick="saveProfile()" class="btn w-full mt-2">
+        Save Profile
+      </button>
+
+      <p id="profileSavedMsg" class="hidden text-green-400 text-sm text-center">
+        ✔ Profile updated successfully
+      </p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- JS -->
+ <script>
+ /* PROFILE IMAGE */
+function updateProfilePic(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    localStorage.setItem("adminPic", reader.result);
+    document.getElementById("profilePreview").src = reader.result;
+    document.getElementById("profilePic").src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* SAVE PROFILE */
+function saveProfile() {
+  const username = document.getElementById("profileUsername").value.trim();
+  const name = document.getElementById("profileName").value.trim();
+
+  if (!username || !name) {
+    alert("Please fill all fields");
+    return;
+  }
+
+  localStorage.setItem("adminUsername", username);
+  localStorage.setItem("adminName", name);
+
+  document.getElementById("adminName").innerText = name;
+
+  const msg = document.getElementById("profileSavedMsg");
+  msg.classList.remove("hidden");
+  setTimeout(() => msg.classList.add("hidden"), 2000);
+}
+
+/* LOAD PROFILE DATA */
+window.addEventListener("load", () => {
+  if (localStorage.getItem("adminUsername")) {
+    document.getElementById("profileUsername").value =
+      localStorage.getItem("adminUsername");
+  }
+
+  if (localStorage.getItem("adminName")) {
+    document.getElementById("profileName").value =
+      localStorage.getItem("adminName");
+    document.getElementById("adminName").innerText =
+      localStorage.getItem("adminName");
+  }
+
+  if (localStorage.getItem("adminPic")) {
+    document.getElementById("profilePreview").src =
+      localStorage.getItem("adminPic");
+    document.getElementById("profilePic").src =
+      localStorage.getItem("adminPic");
+  }
+});
+/* ---------- SECTION SWITCHING (FIX) ---------- */
+function showSection(id, btn) {
+  // Hide all sections
+  document.querySelectorAll('.section').forEach(sec => {
+    sec.classList.add('hidden');
+  });
+
+  // Show selected section
+  const target = document.getElementById(id);
+  if (target) target.classList.remove('hidden');
+
+  // Update active nav button
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.remove('active');
+  });
+  if (btn) btn.classList.add('active');
+}
+/* ---------- USER MANAGEMENT ---------- */
+function addUser() {
+  const name = document.getElementById("username").value;
+  const role = document.getElementById("role").value;
+
+  if (!name) return alert("Enter username");
+
+  const li = document.createElement("li");
+  li.className = "flex justify-between bg-[#102216] p-2 rounded";
+  li.innerHTML = `
+    ${name} (${role})
+    <button onclick="this.parentElement.remove()"
+      class="text-red-400">Remove</button>
+  `;
+
+  document.getElementById("userList").appendChild(li);
+  document.getElementById("username").value = "";
+}
+
+/* ---------- ALERT ACKNOWLEDGE ---------- */
+function acknowledge(btn) {
+  btn.parentElement.remove();
+
+  if (!document.getElementById("alertContainer").children.length) {
+    document.getElementById("noAlerts").classList.remove("hidden");
+  }
+}
+
+/* ---------- SAVE SETTINGS ---------- */
+function saveSettings() {
+  const sensitivity = document.getElementById("sensitivity").value;
+  const threshold = document.getElementById("threshold").value;
+
+  localStorage.setItem("sensitivity", sensitivity);
+  localStorage.setItem("threshold", threshold);
+
+  document.getElementById("savedMsg").classList.remove("hidden");
+
+  setTimeout(() => {
+    document.getElementById("savedMsg").classList.add("hidden");
+  }, 2000);
+}
+
+/* ---------- LOAD SAVED SETTINGS ---------- */
+window.onload = () => {
+  showSection('overview', document.querySelector('.nav-btn'));
+
+  // Load settings
+  if (localStorage.getItem("sensitivity"))
+    document.getElementById("sensitivity").value =
+      localStorage.getItem("sensitivity");
+
+  if (localStorage.getItem("threshold"))
+    document.getElementById("threshold").value =
+      localStorage.getItem("threshold");
+
+  // Load profile
+  if (localStorage.getItem("adminName")) {
+    document.getElementById("adminName").innerText =
+      localStorage.getItem("adminName");
+    document.getElementById("profileName").value =
+      localStorage.getItem("adminName");
+  }
+
+  if (localStorage.getItem("adminEmail")) {
+    document.getElementById("profileEmail").value =
+      localStorage.getItem("adminEmail");
+  }
+
+  if (localStorage.getItem("adminPic")) {
+    document.getElementById("profilePic").src =
+      localStorage.getItem("adminPic");
+    document.getElementById("profilePreview").src =
+      localStorage.getItem("adminPic");
+  }
+};
+
+</script>
+
+
+<!-- STYLES -->
+<style>
+.nav-btn {
+    width: 100%;
+    padding: 10px;
+    text-align: left;
+    border-radius: 6px;
+    color: #d1fae5;
+    transition: 0.2s;
+}
+.nav-btn:hover, .nav-btn.active {
+    background: #1a2e22;
+    color: #13ec5b;
+}
+.card {
+    background: #1a2e22;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+}
+.stat {
+    font-size: 1.6rem;
+    font-weight: bold;
+}
+.section-title {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+.panel {
+    background: #1a2e22;
+    padding: 16px;
+    border-radius: 8px;
+}
+.panel-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+.btn {
+    background: #13ec5b;
+    color: black;
+    padding: 8px 16px;
+    border-radius: 6px;
+}
+.alert {
+    padding: 12px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+}
+.alert.red { border-left: 4px solid red; background: #2a1a1a; }
+.alert.yellow { border-left: 4px solid yellow; background: #2a261a; }
+.ack-btn {
+    background: #13ec5b;
+    color: black;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+.cam {
+    background: black;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+</style>
 
 </body>
 </html>
