@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Login — NETRA</title>
+
+    <!-- YOUR EXISTING CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-image: url('{{ url_for("static", filename="images/loginpg.jpg") }}');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+        }
+
+        .auth-box {
+            background: rgba(18, 18, 18, 0.95);
+            padding: 50px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 0 40px rgba(13, 202, 240, 0.2), 0 0 80px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(13, 202, 240, 0.3);
+        }
+
+        .auth-box h2 {
+            font-size: 28px;
+            margin: 0 0 10px 0;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .auth-subtitle {
+            color: #b0b0b0;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .auth-form {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            background-color: #1f1f1f;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            background-color: #1f1f1f;
+            border-color: #0dcaf0;
+            box-shadow: 0 0 12px rgba(13, 202, 240, 0.4);
+        }
+
+        .form-group input::placeholder {
+            color: #666;
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+
+        .forgot-password a {
+            color: #0dcaf0;
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-password a:hover {
+            color: #0bb3d6;
+            text-decoration: underline;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background-color: #0dcaf0;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .btn-primary:hover {
+            background-color: #0bb3d6;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(13, 202, 240, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            color: #666;
+            font-size: 14px;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .divider span {
+            position: relative;
+            background: rgba(18, 18, 18, 0.95);
+            padding: 0 10px;
+        }
+
+        .g_id_signin {
+            margin: 20px 0 !important;
+            display: flex;
+            justify-content: center;
+        }
+
+        .google-info {
+            color: #999;
+            text-align: center;
+            font-size: 13px;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+
+        .auth-footer {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .auth-footer a {
+            color: #0dcaf0;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .alert {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-danger {
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.5);
+        }
+
+        .alert-success {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.5);
+        }
+
+        .alert-warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-box">
+            <h2>Secure Login</h2>
+            <p class="auth-subtitle">Authorized access only</p>
+
+
+            <!-- Error Alert -->
+            {% if error %}
+            <div class="alert alert-danger show" role="alert">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <!-- EMAIL / PASSWORD LOGIN -->
+            <form method="POST" action="{{ url_for('login') }}" class="auth-form">
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input id="email" name="email" type="email" placeholder="john@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" placeholder="Password" required>
+                </div>
+
+                <div class="forgot-password">
+                    <a href="{{ url_for('reset_password') }}">Forgot password?</a>
+
+                </div>
+
+                <button class="btn-primary" type="submit">Login</button>
+            </form>
+
+            <div class="divider"><span>OR</span></div>
+
+            <!-- GOOGLE LOGIN -->
+            <div id="g_id_onload" data-client_id="{{ client_id }}" data-callback="handleCredentialResponse">
+            </div>
+
+            <div class="g_id_signin" data-theme="dark" data-size="large"></div>
+
+            <p class="google-info">
+                Sign in using your Google account for secure authentication
+            </p>
+
+            <p class="auth-footer">Don't have an account? <a href="/register">Register</a></p>
+        </div>
+    </div>
+
+    <script>
+        function handleCredentialResponse(response) {
+            fetch("/auth/google/callback", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    token: response.credential
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success === true) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        alert(data.error || "Authentication failed. Please try again.");
+
+                    }
+                })
+                .catch(err => {
+                    alert("Google login failed");
+                });
+        }
+    </script>
+
+</body>
+
+</html>

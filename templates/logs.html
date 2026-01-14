@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Logs — NETRA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">NETRA</div>
+            <div class="navbar-links">
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <main class="dashboard-content">
+        <div class="dashboard-header">
+            <h1>System Logs</h1>
+            <p>Audit trail and recorded incidents</p>
+        </div>
+
+        <div class="dashboard-section">
+            <table class="alerts-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Source</th>
+                        <th>Event</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in logs %}
+                    <tr>
+                        <td>{{ entry.ts }}</td>
+                        <td>{{ entry.source }}</td>
+                        <td>{{ entry.event }}</td>
+                        <td>{{ entry.details }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4">No logs available</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 NETRA Surveillance System. All rights reserved.</p>
+    </footer>
+</body>
+</html>

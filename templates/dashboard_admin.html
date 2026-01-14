@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard — NETRA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .gradient-text {
+      background: linear-gradient(to right, #4ade80, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .cam-feed {
+      background-color: #000;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .cam-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: rgba(0, 255, 0, 0.8);
+      font-family: monospace;
+      font-size: 0.75rem;
+      z-index: 10;
+      text-shadow: 0 0 2px black;
+    }
+
+    .rec-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: sans-serif;
+      font-size: 0.7rem;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 2px 6px;
+      border-radius: 4px;
+      z-index: 10;
+    }
+
+    .rec-dot {
+      width: 8px;
+      height: 8px;
+      background-color: red;
+      border-radius: 50%;
+      animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: rgba(0, 255, 100, 0.3);
+      box-shadow: 0 0 10px rgba(0, 255, 100, 0.5);
+      animation: scan 4s linear infinite;
+      opacity: 0.5;
+      z-index: 5;
+    }
+
+    @keyframes scan {
+      0% {
+        top: -10%;
+      }
+
+      100% {
+        top: 110%;
+      }
+    }
+
+    .crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      opacity: 0.5;
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .crosshair::before {
+      top: 9px;
+      left: 0;
+      width: 100%;
+      height: 1px;
+    }
+
+    .crosshair::after {
+      left: 9px;
+      top: 0;
+      height: 100%;
+      width: 1px;
+    }
+  </style>
+</head>
+
+<body
+  class="bg-[#050b07] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#0f2818] via-[#050b07] to-black text-white h-screen flex overflow-hidden">
+  <!-- TOP NAVBAR -->
+  <header class="fixed top-0 left-0 right-0 z-50 h-14
+               flex items-center gap-4
+               bg-[#102216] border-b border-green-900 px-4">
+    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-40 hidden">
+    </div>
+
+    <!-- Hamburger -->
+    <button onclick="toggleSidebar()" class="text-[#13ec5b] focus:outline-none">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+
+    <span class="font-bold text-[#13ec5b] text-lg flex-1">
+      NETRA Admin
+    </span>
+
+    <!-- Notification Bell -->
+    <div class="relative mr-4 cursor-pointer"
+      onclick="markSeen(); showSection('messages', document.querySelector('[onclick*=\'messages\']'));">
+      <svg id="notificationBell" xmlns="http://www.w3.org/2000/svg"
+        class="h-6 w-6 text-gray-400 transition-colors duration-300" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+      <!-- Red Dot -->
+      <span id="notificationDot"
+        class="hidden absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-[#102216] bg-red-500"></span>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="fixed top-0 left-0 z-50 w-64 h-full
+         bg-[#112217] p-4 space-y-6
+         transform -translate-x-full
+         transition-transform duration-300 overflow-y-auto">
+
+    <h2 class="text-xl font-bold text-[#13ec5b]">NETRA Admin</h2>
+    <!-- ADMIN PROFILE CARD -->
+    <div class="flex items-center gap-3 bg-[#1a2e22] p-3 rounded">
+      <img id="profilePic" src="https://via.placeholder.com/60"
+        class="w-14 h-14 rounded-full object-cover border border-green-400">
+      <div>
+        <p id="adminName" class="font-semibold">Admin User</p>
+        <p class="text-xs text-green-300">Administrator</p>
+      </div>
+    </div>
+
+    <nav class="space-y-2">
+      <button onclick="showSection('overview', this)" class="nav-btn active">Overview</button>
+      <button onclick="showSection('management', this)" class="nav-btn">Management</button>
+      <button onclick="showSection('alerts', this)" class="nav-btn">Alerts</button>
+      <button onclick="showSection('messages', this)" class="nav-btn">Messages</button>
+      <button onclick="showSection('monitoring', this)" class="nav-btn">Live Monitoring</button>
+      <button onclick="showSection('health', this)" class="nav-btn">System Health</button>
+      <button onclick="showSection('config', this)" class="nav-btn">Configuration</button>
+      <button onclick="showSection('profile', this)" class="nav-btn">Profile</button>
+
+
+      <a href="/logout"
+        class="block w-full text-left p-3 mt-8 bg-red-900/30 text-red-400 rounded hover:bg-red-900/50 hover:text-red-300 font-bold transition-colors">
+        Logout
+      </a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 p-6 overflow-y-auto space-y-8 pt-16">
+
+
+    <!-- OVERVIEW -->
+    <section id="overview" class="section space-y-8">
+
+      <!-- 1. System Summary Cards -->
+      <div>
+        <h1 class="text-3xl font-bold mb-6 tracking-tight">System <span class="gradient-text">Overview</span></h1>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
+            <h3 class="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold mb-2">Total Users</h3>
+            <p class="text-3xl font-bold text-white">{{ stats.users }}</p>
+          </div>
+          <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
+            <h3 class="text-[0.65rem] text-emerald-400 uppercase tracking-widest font-semibold mb-2">Active Officers
+            </h3>
+            <p class="text-3xl font-bold text-emerald-300">{{ stats.officers }}</p>
+          </div>
+          <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
+            <h3 class="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold mb-2">Total Cases</h3>
+            <p class="text-3xl font-bold text-white">{{ stats.cases }}</p>
+          </div>
+          <div
+            class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1 relative overflow-hidden group">
+            <div class="absolute inset-0 bg-yellow-500/5 group-hover:bg-yellow-500/10 transition"></div>
+            <h3 class="text-[0.65rem] text-yellow-500 uppercase tracking-widest font-semibold mb-2">Pending</h3>
+            <p class="text-3xl font-bold text-yellow-400 relative z-10">{{ stats.pending }}</p>
+          </div>
+          <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
+            <h3 class="text-[0.65rem] text-blue-400 uppercase tracking-widest font-semibold mb-2">Resolved</h3>
+            <p class="text-3xl font-bold text-blue-300">{{ stats.resolved }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Activity Snapshot (Charts) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass p-6 rounded-2xl">
+          <h3 class="panel-title mb-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Alert Status
+            Distribution</h3>
+          <div class="h-48 flex justify-center">
+            <canvas id="overviewStatusChart"></canvas>
+          </div>
+        </div>
+        <div class="glass p-6 rounded-2xl">
+          <h3 class="panel-title mb-4 text-sm font-bold text-gray-400 uppercase tracking-wider">Activity Trend</h3>
+          <div class="h-48">
+            <canvas id="overviewActivityChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Recent Activity & Highlights -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Feed -->
+        <div class="lg:col-span-2 glass p-6 rounded-2xl">
+          <h3 class="panel-title mb-6 text-gray-200 font-semibold">Recent Activity</h3>
+          <div class="space-y-4 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+            {% for item in activity_feed %}
+            <div class="flex gap-4 items-start border-b border-white/5 pb-3 last:border-0 last:pb-0">
+              <div class="mt-1.5 flex-shrink-0">
+                {% if item.type == 'user' %}
+                <div class="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                {% else %}
+                <div class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                {% endif %}
+              </div>
+              <div>
+                <p class="text-sm text-gray-200 leading-snug">{{ item.text }}</p>
+                <p class="text-[0.65rem] text-gray-500 uppercase tracking-wide mt-1">{{ item.time }}</p>
+              </div>
+            </div>
+            {% endfor %}
+            {% if not activity_feed %}
+            <p class="text-gray-500 italic text-sm">No recent activity.</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Highlights & High Priority -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <h3 class="panel-title text-gray-200 font-semibold">Live Alerts</h3>
+
+          {% if stats.pending > 0 %}
+          <div class="bg-yellow-500/10 border-l-2 border-yellow-500 p-4 rounded-r-lg backdrop-blur-sm">
+            <p class="text-yellow-200 font-bold text-sm mb-1">Action Needed</p>
+            <p class="text-xs text-yellow-100/70">{{ stats.pending }} User(s) waiting for approval.</p>
+          </div>
+          {% endif %}
+
+          <!-- Check for Critical Alerts manually in template or passed prop -->
+          {% set critical_count = active_alerts | selectattr('severity', 'equalto', 'Critical') | list | length %}
+          {% if critical_count > 0 %}
+          <div class="bg-red-500/10 border-l-2 border-red-500 p-4 rounded-r-lg backdrop-blur-sm animate-pulse">
+            <p class="text-red-200 font-bold text-sm mb-1">Security Warning</p>
+            <p class="text-xs text-red-100/70">{{ critical_count }} Critical Alert(s) Active!</p>
+          </div>
+          {% endif %}
+
+          {% if stats.pending == 0 and critical_count == 0 %}
+          <div class="p-6 text-center text-emerald-400/50 flex flex-col items-center">
+            <div class="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 opacity-75 loading-none" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p class="text-sm font-medium">All Systems Nominal</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 4. Quick Navigation -->
+      <div>
+        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Quick Actions</h3>
+        <div class="flex flex-wrap gap-4">
+          <button onclick="showSection('management')"
+            class="glass hover:bg-white/10 text-emerald-400 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
+            <span class="text-xl group-hover:scale-110 transition-transform">👥</span> <span
+              class="text-sm font-medium">Review Pending</span>
+          </button>
+          <button onclick="showSection('management')"
+            class="glass hover:bg-white/10 text-emerald-400 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
+            <span class="text-xl group-hover:scale-110 transition-transform">👮</span> <span
+              class="text-sm font-medium">Manage Officers</span>
+          </button>
+          <button onclick="exportReports()"
+            class="glass hover:bg-white/10 text-blue-400 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
+            <span class="text-xl group-hover:scale-110 transition-transform">📄</span> <span
+              class="text-sm font-medium">Global Reports</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- MANAGEMENT -->
+    <section id="management" class="section hidden">
+      <h1 class="section-title">Management Hub</h1>
+
+      <!-- PENDING APPROVALS -->
+      {% if pending_users %}
+      <div class="panel mb-6 border-l-4 border-yellow-500">
+        <h3 class="panel-title text-yellow-500">⚠️ Pending Approvals</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="text-gray-400 border-b border-gray-700">
+                <th class="py-2">Name</th>
+                <th class="py-2">Email</th>
+                <th class="py-2">Role</th>
+                <th class="py-2">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in pending_users %}
+              <tr id="user-row-{{user.id}}" class="border-b border-gray-800">
+                <td class="py-2">{{ user.name }}</td>
+                <td class="py-2">{{ user.email }}</td>
+                <td class="py-2 uppercase text-xs">{{ user.role }}</td>
+                <td class="py-2 flex gap-2">
+                  <button onclick="updateUserStatus('{{ user.id }}', 'approved')"
+                    class="bg-green-600 hover:bg-green-500 text-white px-2 py-1 rounded text-xs">Approve</button>
+                  <button onclick="updateUserStatus('{{ user.id }}', 'rejected')"
+                    class="bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded text-xs">Reject</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ACTIVE USER LIST -->
+      <div class="glass p-4 rounded-xl mb-6">
+        <h3 class="panel-title">Active Security Officers</h3>
+        <ul id="userList" class="space-y-2 text-sm mt-3">
+          {% for officer in active_users %}
+          <li class="flex justify-between items-center glass p-3 rounded" id="user-row-{{officer.id}}">
+            <span>{{ officer.name }} ({{ officer.email }})</span>
+            <button onclick="updateUserStatus('{{ officer.id }}', 'blocked')"
+              class="text-red-400 hover:text-red-300 border border-red-500/30 px-2 py-1 rounded text-xs transition duration-200">
+              Block
+            </button>
+          </li>
+          {% endfor %}
+          {% if not active_users %}
+          <li class="text-gray-500 italic">No active officers found.</li>
+          {% endif %}
+        </ul>
+      </div>
+
+      <!-- BLOCKED USER HISTORY -->
+      <div class="glass p-4 rounded-xl">
+        <h3 class="panel-title text-red-400">Blocked Officers History</h3>
+        <ul id="blockedUserList" class="space-y-2 text-sm mt-3">
+          {% for officer in blocked_users %}
+          <li class="flex justify-between items-center bg-red-900/10 p-3 rounded border border-red-500/10"
+            id="user-row-{{officer.id}}">
+            <span class="text-gray-400">{{ officer.name }} ({{ officer.email }})</span>
+            <button onclick="updateUserStatus('{{ officer.id }}', 'approved')"
+              class="text-green-400 hover:text-green-300 border border-green-500/30 px-2 py-1 rounded text-xs transition duration-200">
+              Unblock
+            </button>
+          </li>
+          {% endfor %}
+          {% if not blocked_users %}
+          <li class="text-gray-500 italic">No blocked officers.</li>
+          {% endif %}
+        </ul>
+      </div>
+    </section>
+
+    <!-- MESSAGES SECTION -->
+    <section id="messages" class="section hidden">
+      <h2 class="section-title">Messages</h2>
+      <div id="messaging" class="glass p-6 rounded-xl border border-white/5 mb-6">
+        <h3 class="panel-title mb-4 font-bold text-emerald-400">Comms Channel</h3>
+
+        <!-- Compose -->
+        <div class="mb-4 space-y-2">
+          <div class="flex gap-2">
+            <select id="msgRecipient"
+              class="glass p-2 rounded text-sm border-white/10 w-1/3 text-gray-300 focus:outline-none focus:border-green-500">
+              <option value="all" class="bg-black">Broadcast to All Officers</option>
+              {% for officer in active_users %}
+              <option value="{{ officer.id }}" class="bg-black">{{ officer.name }}</option>
+              {% endfor %}
+            </select>
+            <input id="msgContent" type="text" placeholder="Type a message..."
+              class="glass p-2 rounded text-sm border-white/10 w-full text-white placeholder-gray-500 focus:outline-none focus:border-green-500">
+            <button onclick="sendMessage()"
+              class="bg-gradient-to-r from-green-500 to-emerald-600 text-black px-4 py-2 rounded hover:from-green-400 hover:to-emerald-500 font-bold shadow-lg shadow-green-500/20 transition-all duration-300">
+              Send
+            </button>
+          </div>
+        </div>
+
+        <!-- Log -->
+        <h4 class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Recent Comms</h4>
+        <div class="h-[400px] overflow-y-auto space-y-3 custom-scrollbar pr-2">
+          {% for msg in messages %}
+          <div
+            class="p-3 rounded-lg text-sm shadow-sm {{ 'bg-emerald-900/20 ml-12 border-l-2 border-emerald-500 self-end text-right' if msg.sender_id == session.user.id else 'bg-white/5 mr-12 border-r-2 border-gray-600' }}">
+            <div
+              class="flex justify-between text-xs text-gray-500 mb-1 {{ 'flex-row-reverse' if msg.sender_id == session.user.id }}">
+              <span class="font-bold text-gray-400">
+                {% if msg.sender_id == session.user.id %}
+                You ➔ {{ 'All' if not msg.receiver_id else msg.receiver_name or 'Officer' }}
+                {% else %}
+                {{ msg.sender_name }} ➔ You
+                {% endif %}
+              </span>
+              <span>{{ msg.timestamp }}</span>
+            </div>
+            <p class="text-gray-200">{{ msg.content }}</p>
+          </div>
+          {% endfor %}
+          {% if not messages %}
+          <div class="flex flex-col items-center justify-center h-full text-gray-500 space-y-2">
+            <span class="text-2xl opacity-20">💬</span>
+            <p class="text-xs italic">No recent communications.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ALERTS SECTION -->
+    <section id="alerts" class="section hidden">
+      <h2 class="section-title">System Alerts</h2>
+
+      <!-- ACTIVE ALERTS -->
+      <h3 class="text-xl font-bold text-red-400 mb-3 border-b border-gray-700 pb-2">Active Alerts</h3>
+      <div id="alertContainer" class="space-y-4 mb-8">
+        {% for alert in active_alerts %}
+        <div class="alert {{ 'red' if alert.severity == 'Critical' else 'yellow' }}">
+          <span>
+            <b>{{ alert.created_at }}</b> — {{ alert.message }} <i class="text-xs text-gray-300">({{ alert.source
+              }})</i>
+          </span>
+          <button class="ack-btn" onclick="acknowledge(this, '{{ alert.id }}')">Acknowledge</button>
+        </div>
+        {% endfor %}
+        {% if not active_alerts %}
+        <p id="noAlerts" class="text-green-400 italic">✅ No active alerts.</p>
+        {% endif %}
+        <!-- Hidden element to toggle if JS clears all -->
+        <p id="noAlertsDynamic" class="hidden text-green-400 italic">✅ No active alerts.</p>
+      </div>
+
+      <!-- ALERT HISTORY -->
+      <h3 class="text-xl font-bold text-gray-400 mb-3 border-b border-white/10 pb-2">Alert History</h3>
+      <div id="alertHistoryContainer" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+        {% for alert in resolved_alerts %}
+        <div
+          class="p-3 rounded glass border-none text-gray-400 text-sm flex justify-between items-center hover:bg-white/5 transition">
+          <span>
+            {{ alert.created_at }} — {{ alert.message }}
+          </span>
+          <span
+            class="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded border border-green-500/20">Resolved</span>
+        </div>
+        {% endfor %}
+        {% if not resolved_alerts %}
+        <p class="text-gray-500 italic">No history available.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <p id="noAlerts" class="hidden text-green-400 mt-4">
+      ✅ No active alerts
+    </p>
+    </section>
+
+    <!-- MONITORING -->
+    <section id="monitoring" class="section hidden">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold tracking-tight">Live <span class="gradient-text">Monitoring</span></h1>
+        <div class="flex gap-2">
+          <button class="glass px-3 py-1 rounded text-xs text-green-400 border border-green-500/30">Auto-Cycle</button>
+          <button class="glass px-3 py-1 rounded text-xs text-gray-400 hover:text-white">Grid View</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-200px)]">
+        <!-- Cam 1 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">
+            CAM-01 [MAIN GATE]<br>
+            <span class="live-clock">--:--:--</span>
+          </div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <div class="scan-line"></div>
+          <div class="crosshair"></div>
+          <!-- Placeholder Image with Gradient Overlay -->
+          <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=600&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+
+          <div
+            class="absolute bottom-4 left-4 right-4 flex justify-center opacity-0 group-hover:opacity-100 transition">
+            <div class="glass flex gap-2 p-1 rounded-full">
+              <button class="p-2 hover:bg-white/10 rounded-full text-white" title="PTZ Left">⬅️</button>
+              <button class="p-2 hover:bg-white/10 rounded-full text-white" title="Zoom In">➕</button>
+              <button class="p-2 hover:bg-white/10 rounded-full text-white" title="PTZ Right">➡️</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cam 2 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">
+            CAM-02 [LOBBY]<br>
+            <span class="live-clock">--:--:--</span>
+          </div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <div class="scan-line" style="animation-delay: 1s;"></div>
+          <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+        </div>
+
+        <!-- Cam 3 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">
+            CAM-03 [PERIMETER N]<br>
+            <span class="live-clock">--:--:--</span>
+          </div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <div class="scan-line" style="animation-delay: 2s;"></div>
+          <img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?q=80&w=600&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+        </div>
+
+        <!-- Cam 4 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">
+            CAM-04 [SERVER ROOM]<br>
+            <span class="live-clock">--:--:--</span>
+          </div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <div class="scan-line" style="animation-delay: 3s;"></div>
+          <img src="https://images.unsplash.com/photo-1558494949-ef2bb3cc4702?q=80&w=600&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+        </div>
+      </div>
+
+      <script>
+        function updateClocks() {
+          const now = new Date();
+          const time = now.toLocaleTimeString();
+          document.querySelectorAll('.live-clock').forEach(el => el.innerText = time);
+        }
+        setInterval(updateClocks, 1000);
+        updateClocks();
+      </script>
+    </section>
+
+    <!-- HEALTH -->
+    <section id="health" class="section hidden">
+      <h1 class="section-title">System Health</h1>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card">CPU Usage<br><span class="stat">42%</span></div>
+        <div class="card">Memory Usage<br><span class="stat">6.2 GB</span></div>
+        <div class="card">Uptime<br><span class="stat">99.9%</span></div>
+      </div>
+    </section>
+    <section id="config" class="section hidden">
+      <h1 class="section-title">System Configuration</h1>
+
+      <label class="block mb-4">
+        Detection Sensitivity
+        <input id="sensitivity" type="range" class="w-full mt-2 accent-green-500">
+      </label>
+
+      <label class="block mb-4">
+        Alert Threshold
+        <input id="threshold" type="number"
+          class="w-full glass p-2 rounded focus:outline-none focus:border-green-500 transition-colors">
+      </label>
+
+      <button onclick="saveSettings()" class="btn">Save Settings</button>
+
+      <p id="savedMsg" class="hidden text-green-400 mt-3">
+        ✔ Settings saved successfully
+      </p>
+    </section>
+    <!-- PROFILE SECTION -->
+    <section id="profile" class="section hidden flex justify-center">
+      <div class="glass p-8 rounded-2xl max-w-lg w-full relative overflow-hidden">
+        <!-- Decoration -->
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none">
+        </div>
+
+        <h1 class="section-title text-center mb-8">Admin Profile</h1>
+
+        <!-- Profile Picture -->
+        <div class="flex flex-col items-center gap-4 mb-6">
+          <div class="relative group">
+            <img id="profilePreview" src="https://via.placeholder.com/120"
+              class="w-28 h-28 rounded-full object-cover border-4 border-white/5 group-hover:border-green-400 transition-all duration-300 shadow-xl">
+            <div
+              class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none">
+              <span class="text-xs font-bold text-white">Change</span>
+            </div>
+          </div>
+          <input type="file" accept="image/*" onchange="updateProfilePic(event)"
+            class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-500/10 file:text-green-400 hover:file:bg-green-500/20">
+        </div>
+
+        <!-- Profile Fields -->
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm text-gray-400 ml-1">Username</label>
+            <input id="profileUsername"
+              class="w-full glass p-3 rounded-lg focus:outline-none focus:border-green-500 transition-colors text-white"
+              placeholder="admin_username">
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400 ml-1">Full Name</label>
+            <input id="profileName"
+              class="w-full glass p-3 rounded-lg focus:outline-none focus:border-green-500 transition-colors text-white"
+              placeholder="Admin Name">
+          </div>
+
+          <button onclick="saveProfile()"
+            class="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white p-3 rounded-lg font-bold hover:shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all duration-300 mt-4">
+            Save Changes
+          </button>
+
+          <p id="profileSavedMsg"
+            class="hidden text-green-400 text-sm text-center bg-green-500/10 py-2 rounded border border-green-500/20">
+            ✔ Profile updated successfully
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+  <script>
+    /* ---------- DASHBOARD CHARTS ---------- */
+    function loadCharts() {
+      // Data passed from backend would be better, but mock for layout verification
+      // Status Distribution
+      new Chart(document.getElementById("overviewStatusChart"), {
+        type: "doughnut",
+        data: {
+          labels: ["Pending", "Resolved", "Investigating"],
+          datasets: [{
+            data: [{{ stats.cases - stats.resolved }}, {{ stats.resolved }}, 0],
+        backgroundColor: ["#eab308", "#3b82f6", "#facc15"],
+        borderWidth: 0
+      }]
+        },
+    options: {
+      responsive: true,
+        maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: "#9ca3af" } } }
+    }
+      });
+
+    // Activity Trend (Dummy Data for visual)
+    new Chart(document.getElementById("overviewActivityChart"), {
+      type: "line",
+      data: {
+        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        datasets: [{
+          label: "System Activity",
+          data: [12, 19, 3, 5, 2, 3, 10],
+          borderColor: "#13ec5b",
+          tension: 0.4,
+          fill: true,
+          backgroundColor: "rgba(19, 236, 91, 0.1)"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { color: "#6b7280" }, grid: { display: false } },
+          y: { ticks: { color: "#6b7280" }, grid: { color: "#374151" } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+    }
+
+
+
+    /* ---------- EXPORT REPORTS ---------- */
+    function exportReports() {
+      window.location.href = "/export_reports";
+    }
+
+    /* ---------- SIDEBAR ---------- */
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("-translate-x-full");
+      document.getElementById("overlay").classList.toggle("hidden");
+    }
+
+    /* Close sidebar logic moved to showSection */
+
+    /* ---------- SECTION SWITCHING ---------- */
+    function showSection(id, btn = null) {
+      document.querySelectorAll(".section").forEach(sec =>
+        sec.classList.add("hidden")
+      );
+
+      document.getElementById(id)?.classList.remove("hidden");
+
+      document.querySelectorAll(".nav-btn").forEach(b =>
+        b.classList.remove("active")
+      );
+
+      if (btn) btn.classList.add("active");
+
+      // Auto-hide sidebar on mobile
+      // Auto-hide sidebar
+      const sidebar = document.getElementById("sidebar");
+      const overlay = document.getElementById("overlay");
+      if (sidebar && !sidebar.classList.contains("-translate-x-full")) {
+        sidebar.classList.add("-translate-x-full");
+        overlay.classList.add("hidden");
+      }
+    }
+
+    /* ---------- PROFILE IMAGE ---------- */
+    function updateProfilePic(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        localStorage.setItem("adminPic", reader.result);
+        profilePreview.src = reader.result;
+        profilePic.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /* ---------- SAVE PROFILE ---------- */
+    function saveProfile() {
+      const username = profileUsername.value.trim();
+      const name = profileName.value.trim();
+
+      if (!username || !name) return alert("Fill all fields");
+
+      localStorage.setItem("adminUsername", username);
+      localStorage.setItem("adminName", name);
+
+      adminName.innerText = name;
+
+      profileSavedMsg.classList.remove("hidden");
+      setTimeout(() => profileSavedMsg.classList.add("hidden"), 2000);
+    }
+
+    /* ---------- USER MANAGEMENT ---------- */
+    function addUser() {
+      const name = username.value;
+      const role = roleSelect.value;
+
+      if (!name) return alert("Enter username");
+
+      const li = document.createElement("li");
+      li.className = "flex justify-between bg-[#102216] p-2 rounded";
+      li.innerHTML = `${name} (${role})
+    <button class="text-red-400" onclick="this.parentElement.remove()">Remove</button>`;
+
+      userList.appendChild(li);
+      username.value = "";
+    }
+
+    /* ---------- ALERT ACK ---------- */
+    async function acknowledge(btn, alertId) {
+      if (!confirm("Are you sure you want to acknowledge this alert?")) return;
+
+      try {
+        const res = await fetch('/api/update_alert_status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: alertId, status: 'Resolved' })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          btn.closest('.alert').remove();
+          if (!document.querySelectorAll('#alertContainer .alert').length) {
+            const noAlerts = document.getElementById('noAlerts');
+            const noAlertsDyn = document.getElementById('noAlertsDynamic');
+            if (noAlerts) noAlerts.classList.remove('hidden');
+            if (noAlertsDyn) noAlertsDyn.classList.remove('hidden');
+          }
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to acknowledge alert.");
+      }
+    }
+
+    /* ---------- SAVE SETTINGS ---------- */
+    function saveSettings() {
+      localStorage.setItem("sensitivity", sensitivity.value);
+      localStorage.setItem("threshold", threshold.value);
+
+      savedMsg.classList.remove("hidden");
+      setTimeout(() => savedMsg.classList.add("hidden"), 2000);
+    }
+
+    async function sendMessage() {
+      const recipient = document.getElementById('msgRecipient').value;
+      const content = document.getElementById('msgContent').value;
+
+      if (!content.trim()) return alert("Please enter a message.");
+
+      try {
+        const res = await fetch('/api/send_message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ receiver_id: recipient, content: content })
+        });
+        const data = await res.json();
+        if (data.success) {
+          // Ideally append to list dynamically, but reload is easiest for MVP
+          window.location.reload();
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to send message.");
+      }
+    }
+
+    /* ---------- LOAD DATA ---------- */
+    window.onload = () => {
+      showSection("overview", document.querySelector(".nav-btn"));
+
+      if (localStorage.getItem("adminName")) {
+        adminName.innerText = localStorage.getItem("adminName");
+        profileName.value = localStorage.getItem("adminName");
+      }
+
+      if (localStorage.getItem("adminUsername"))
+        profileUsername.value = localStorage.getItem("adminUsername");
+
+      if (localStorage.getItem("adminPic")) {
+        profilePic.src = localStorage.getItem("adminPic");
+        profilePreview.src = localStorage.getItem("adminPic");
+      }
+
+      if (localStorage.getItem("sensitivity"))
+        sensitivity.value = localStorage.getItem("sensitivity");
+
+      if (localStorage.getItem("threshold"))
+        threshold.value = localStorage.getItem("threshold");
+      loadCharts();
+    };
+
+    /* ---------- USER STATUS UPDATE ---------- */
+    async function updateUserStatus(userId, status) {
+      if (!confirm(`Are you sure you want to ${status} this user?`)) return;
+
+      try {
+        const res = await fetch('/api/update_user_status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: userId, status: status })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById(`user-row-${userId}`).remove();
+          // Optional: Reload if empty to remove the panel
+        } else {
+          alert("Action failed: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server error");
+      }
+    }
+
+    /* ---------- POLLING & NOTIFICATIONS ---------- */
+    let lastMsgId = 0;
+    let lastAlertId = 0;
+    let serverMaxMsgId = 0;
+
+    async function pollState() {
+      try {
+        const res = await fetch('/api/sync_state');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        serverMaxMsgId = data.latest_msg_id;
+
+        // On first run, valid IDs -> set baseline
+        if (lastMsgId === 0 && lastAlertId === 0) {
+          lastMsgId = data.latest_msg_id;
+          lastAlertId = data.latest_alert_id;
+          return;
+        }
+
+        // Check for updates
+        const dot = document.getElementById('notificationDot');
+        if (data.latest_msg_id > lastMsgId) {
+          dot.classList.remove('hidden');
+        }
+      } catch (e) { console.error("Poll error", e); }
+    }
+
+    function markSeen() {
+      document.getElementById('notificationDot').classList.add('hidden');
+      if (serverMaxMsgId > 0) lastMsgId = serverMaxMsgId;
+    }
+
+    // Poll every 5s
+    setInterval(pollState, 5000);
+    pollState();
+  </script>
+  <!-- STYLES -->
+  <style>
+    .nav-btn {
+      width: 100%;
+      padding: 10px;
+      text-align: left;
+      border-radius: 6px;
+      color: #d1fae5;
+      transition: 0.2s;
+    }
+
+    .nav-btn:hover,
+    .nav-btn.active {
+      background: #1a2e22;
+      color: #13ec5b;
+
+    }
+
+    .card {
+      background: #1a2e22;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat {
+      font-size: 1.6rem;
+      font-weight: bold;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .panel {
+      background: #1a2e22;
+      padding: 16px;
+      border-radius: 8px;
+    }
+
+    .panel-title {
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .btn {
+      background: #13ec5b;
+      color: black;
+      padding: 8px 16px;
+      border-radius: 6px;
+    }
+
+    .alert {
+      padding: 12px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .alert.red {
+      border-left: 4px solid red;
+      background: #2a1a1a;
+    }
+
+    .alert.yellow {
+      border-left: 4px solid yellow;
+      background: #2a261a;
+    }
+
+    .ack-btn {
+      background: #13ec5b;
+      color: black;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    .cam {
+      background: black;
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+  </style>
+
+</body>
+
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NETRA — Intelligent Security System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.logo svg {
+  color: var(--accent);
+  filter: drop-shadow(0 0 8px rgba(19, 236, 91, 0.6));
+}
+
+    :root {
+      --bg-main: #0b1a12;
+      --bg-dark: #102216;
+      --bg-card: #1a2e22;
+      --accent: #13ec5b;
+      --accent-soft: #22c55e;
+      --text-main: #e5ffe9;
+      --text-muted: #9fe7c1;
+      --border: #1f4d36;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background:
+        linear-gradient(rgba(11, 26, 18, 0.92), rgba(16, 34, 22, 0.95)),
+        url("/static/images/loginpg.jpg");
+      background-size: cover;
+      background-position: center;
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    /* NAVBAR */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 60px;
+      background: rgba(16, 34, 22, 0.85);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      color: var(--accent);
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    nav a {
+      color: var(--text-muted);
+      margin-left: 25px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    nav a:hover {
+      color: var(--accent);
+    }
+
+    /* HERO */
+    .hero {
+      min-height: calc(100vh - 80px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .hero h2 {
+      font-size: 3.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      text-shadow: 0 0 25px rgba(19, 236, 91, 0.35);
+    }
+
+    .hero p {
+      margin-top: 20px;
+      max-width: 650px;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .hero-buttons {
+      margin-top: 40px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: black;
+      padding: 14px 30px;
+      border-radius: 10px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 0 30px rgba(19, 236, 91, 0.45);
+      transition: 0.3s;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-soft);
+      box-shadow: 0 0 40px rgba(19, 236, 91, 0.75);
+      transform: translateY(-2px);
+    }
+
+    .btn-outline {
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 14px 30px;
+      border-radius: 10px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: 0.3s;
+    }
+
+    .btn-outline:hover {
+      background: var(--accent);
+      color: black;
+    }
+
+    /* FEATURES */
+    .features {
+      padding: 80px 60px;
+      background: var(--bg-dark);
+    }
+
+    .features h3 {
+      text-align: center;
+      font-size: 2.4rem;
+      margin-bottom: 50px;
+      color: var(--accent);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 30px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      transition: 0.3s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 0 30px rgba(19, 236, 91, 0.25);
+    }
+
+    .feature-card h4 {
+      margin-bottom: 12px;
+      color: var(--accent);
+      font-size: 1.3rem;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    /* FOOTER */
+  .footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.footer-logo svg {
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px rgba(19, 236, 91, 0.5));
+}
+
+
+    @media (max-width: 768px) {
+      header {
+        padding: 20px;
+      }
+      .hero h2 {
+        font-size: 2.6rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<header>
+  <h1 class="logo">
+  <!-- Eye Symbol -->
+  <svg
+    width="28"
+    height="28"
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z"
+      stroke="currentColor"
+      stroke-width="2"
+      fill="currentColor"
+      fill-opacity="0.15"
+    />
+    <circle cx="12" cy="12" r="3" fill="currentColor" />
+  </svg>
+
+  NETRA
+</h1>
+
+  <nav>
+    <a href="#features">Features</a>
+    <a href="/login">Login</a>
+    <a href="/register">Register</a>
+  </nav>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <h2>Intelligent Surveillance.<br>Absolute Control.</h2>
+  <p>
+    NETRA is an AI-powered security and monitoring platform that delivers
+    real-time surveillance, smart alerts, and centralized command dashboards
+    for administrators and officers.
+  </p>
+
+  <div class="hero-buttons">
+    <a href="/login" class="btn-primary">Secure Login</a>
+    <a href="#features" class="btn-outline">Explore Features</a>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <h3>Why Choose NETRA?</h3>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>AI Threat Detection</h4>
+      <p>
+        Intelligent motion and anomaly detection powered by real-time analytics
+        to minimize false alerts.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <h4>Live Monitoring</h4>
+      <p>
+        Monitor multiple camera feeds and zones from a centralized, responsive
+        dashboard.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <h4>Role-Based Access</h4>
+      <p>
+        Separate dashboards for administrators and officers with secure access
+        control.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <h4>Instant Alerts</h4>
+      <p>
+        Receive alerts instantly and take action with acknowledgment and logging
+        support.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <h4>System Health</h4>
+      <p>
+        Track uptime, device status, and performance metrics in real time.
+      </p>
+    </div>
+
+    <div class="feature-card">
+      <h4>Secure Authentication</h4>
+      <p>
+        Login via email/password or Google OAuth with encrypted sessions.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-logo">
+    <!-- Eye Symbol -->
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z"
+        stroke="currentColor"
+        stroke-width="2"
+        fill="currentColor"
+        fill-opacity="0.15"
+      />
+      <circle cx="12" cy="12" r="3" fill="currentColor" />
+    </svg>
+
+    <span>NETRA</span>
+  </div>
+
+  <p>© 2026 NETRA Security Systems • Built for intelligent protection</p>
+</footer>
+
+
+</body>
+</html>
