@@ -15,7 +15,7 @@ def start_detection():
         cv2.imshow("NETRA Surveillance", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            filename = f"static/snapshots/{datetime.datetime.now()}.jpg"
+            filename = f"static/snapshots/{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             cv2.imwrite(filename, frame)
             break
 

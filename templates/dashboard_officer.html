@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
   <!-- Google Fonts: Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -149,6 +150,21 @@
       color: #13ec5b;
       border-left: 3px solid #13ec5b;
     }
+
+    .lang-opt {
+      width: 100%;
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      color: #d1d5db;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .lang-opt:hover {
+      background-color: rgba(19, 236, 91, 0.2);
+      color: #13ec5b;
+    }
   </style>
 </head>
 
@@ -173,6 +189,35 @@
     <span class="font-bold text-[#13ec5b] text-lg flex-1">
       NETRA Officer
     </span>
+
+    <!-- Language Selector -->
+    <!-- Custom Language Selector -->
+    <div class="relative mr-4 group z-50">
+      <button id="langBtn"
+        class="flex items-center gap-2 bg-[#102216] text-[#13ec5b] border border-[#13ec5b] text-xs rounded px-3 py-1.5 focus:outline-none hover:bg-[#13ec5b]/10 transition">
+        <span id="currentLangLabel">Language</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <!-- Dropdown Menu -->
+      <div class="absolute right-0 top-full pt-1 w-40 hidden group-hover:block z-50">
+        <div class="bg-[#0a160f] border border-[#13ec5b]/30 rounded-lg shadow-xl overflow-hidden">
+          <div class="max-h-60 overflow-y-auto custom-scrollbar-chat p-1 space-y-1">
+            <button onclick="setLang('en', 'English')" class="lang-opt">English</button>
+            <button onclick="setLang('hi', 'Hindi')" class="lang-opt">Hindi</button>
+            <button onclick="setLang('ml', 'Malayalam')" class="lang-opt">Malayalam</button>
+            <button onclick="setLang('fr', 'French')" class="lang-opt">French</button>
+            <button onclick="setLang('es', 'Spanish')" class="lang-opt">Spanish</button>
+            <button onclick="setLang('zh', 'Chinese')" class="lang-opt">Chinese</button>
+            <button onclick="setLang('de', 'German')" class="lang-opt">German</button>
+            <button onclick="setLang('ja', 'Japanese')" class="lang-opt">Japanese</button>
+            <button onclick="setLang('ru', 'Russian')" class="lang-opt">Russian</button>
+            <button onclick="setLang('ar', 'Arabic')" class="lang-opt">Arabic</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Notification Bell -->
     <div class="relative mr-4 cursor-pointer"
@@ -210,19 +255,20 @@
 
 
       <nav class="space-y-2">
-        <button class="nav-btn active" onclick="showSection('dashboard', this)">Dashboard</button>
-        <button class="nav-btn" onclick="showSection('alerts', this)">System Alerts</button>
-        <button class="nav-btn" onclick="showSection('analysis', this)">Analysis</button>
-        <button class="nav-btn" onclick="showSection('reports', this)">Reports</button>
-        <button class="nav-btn" onclick="showSection('messages', this)">Messages</button>
-        <button class="nav-btn" onclick="showSection('settings', this)">Settings</button>
+        <button class="nav-btn active" onclick="showSection('dashboard', this)" data-i18n="dashboard">Dashboard</button>
+        <button class="nav-btn" onclick="showSection('map', this)" data-i18n="tactical_map">Tactical Map</button>
+        <button class="nav-btn" onclick="showSection('alerts', this)" data-i18n="alerts">System Alerts</button>
+        <button class="nav-btn" onclick="showSection('analysis', this)" data-i18n="analysis">Analysis</button>
+        <button class="nav-btn" onclick="showSection('reports', this)" data-i18n="reports">Reports</button>
+        <button class="nav-btn" onclick="showSection('messages', this)" data-i18n="messages">Messages</button>
+        <button class="nav-btn" onclick="showSection('settings', this)" data-i18n="settings">Settings</button>
       </nav>
     </div>
-    <button class="nav-btn" onclick="showSection('profile', this)">
+    <button class="nav-btn" onclick="showSection('profile', this)" data-i18n="profile">
       Profile
     </button>
 
-    <a href="/logout"
+    <a href="/logout" data-i18n="logout"
       class="block w-full text-left p-3 mt-8 bg-red-900/30 text-red-400 rounded hover:bg-red-900/50 hover:text-red-300 font-bold transition-colors">
       Logout
     </a>
@@ -231,25 +277,28 @@
   <!-- MAIN CONTENT -->
   <main class="flex-1 p-6 overflow-y-auto pt-16">
 
-
     <!-- DASHBOARD -->
     <section id="dashboard" class="section">
-      <h1 class="text-3xl font-bold mb-1 tracking-tight">Command <span class="gradient-text">Center</span></h1>
+      <h1 class="text-3xl font-bold mb-1 tracking-tight"><span data-i18n="command_center">Command Center</span></h1>
       <p class="text-sm text-[#a7f3d0] mb-6">System Online</p>
 
       <!-- QUICK ACTIONS -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <button
-          class="bg-red-600/20 text-red-400 border border-red-600 px-4 py-3 rounded hover:bg-red-600 hover:text-white">Trigger
+          class="bg-red-600/20 text-red-400 border border-red-600 px-4 py-3 rounded hover:bg-red-600 hover:text-white"
+          data-i18n="trigger_alarm">Trigger
           Alarm</button>
         <button
-          class="bg-yellow-500/20 text-yellow-400 border border-yellow-500 px-4 py-3 rounded hover:bg-yellow-500 hover:text-black">Spotlight</button>
-        <button class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]">Broadcast</button>
-        <button class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]">Unlock Gates</button>
+          class="bg-yellow-500/20 text-yellow-400 border border-yellow-500 px-4 py-3 rounded hover:bg-yellow-500 hover:text-black"
+          data-i18n="spotlight">Spotlight</button>
+        <button class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]"
+          data-i18n="broadcast">Broadcast</button>
+        <button class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]"
+          data-i18n="unlock_gates">Unlock Gates</button>
       </div>
 
       <!-- LIVE FEEDS -->
-      <h2 class="text-xl font-bold mb-4">Live Surveillance</h2>
+      <h2 class="text-xl font-bold mb-4" data-i18n="live_surveillance">Live Surveillance</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Cam 1 -->
         <div class="cam-feed rounded-xl h-48 relative group">
@@ -379,7 +428,13 @@
 
     <!-- MAP VIEW -->
     <section id="map" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Tactical Map</h2>
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" data-i18n="tactical_map">Tactical Map</h2>
+        <button onclick="toggleHeatmap()" data-i18n="toggle_heatmap"
+          class="bg-[#13ec5b]/20 text-[#13ec5b] px-3 py-1 rounded border border-[#13ec5b] hover:bg-[#13ec5b] hover:text-black transition text-sm font-bold">
+          Toggle Heatmap
+        </button>
+      </div>
       <div class="glass p-2 rounded-xl">
         <div id="officerMap" class="h-96 w-full rounded-lg z-0"></div>
       </div>
@@ -528,6 +583,7 @@
       </div>
     </section>
 
+    {% include 'component_chatbot.html' %}
   </main>
 
   <!-- JS -->
@@ -782,12 +838,15 @@
     /* ---------- LEAFLET MAP ---------- */
     // Initialize map when section is shown or on load (but ideally when shown to handle resizing)
     // We'll init global variable and resize on show
+    /* ---------- LEAFLET MAP ---------- */
+    // Initialize map when section is shown or on load (but ideally when shown to handle resizing)
     let mapInstance = null;
+    let heatLayer = null;
 
     function initMap() {
       if (mapInstance) return;
       // Mock coords: 28.6139, 77.2090 (Connaught Place, Delhi) as base
-      mapInstance = L.map('officerMap').setView([28.6139, 77.2090], 15);
+      mapInstance = L.map('officerMap').setView([28.6139, 77.2090], 13);
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -795,7 +854,7 @@
         maxZoom: 20
       }).addTo(mapInstance);
 
-      // Add Markers
+      // Add markers
       L.marker([28.6139, 77.2090]).addTo(mapInstance)
         .bindPopup("<b>HQ</b><br>Command Center").openPopup();
 
@@ -814,7 +873,52 @@
           radius: 8
         }).addTo(mapInstance).bindTooltip(off.name);
       });
+
+      // Auto-load heatmap
+      setTimeout(toggleHeatmap, 500);
     }
+
+    async function toggleHeatmap() {
+      if (!mapInstance) return;
+
+      if (heatLayer) {
+        mapInstance.removeLayer(heatLayer);
+        heatLayer = null;
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/heatmap_data');
+        const points = await res.json();
+
+        // Points format: [lat, lng, intensity]
+        heatLayer = L.heatLayer(points, {
+          radius: 30, // Increased radius
+          blur: 20,
+          maxZoom: 17,
+          gradient: { 0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red' } // More vibrant gradient
+        }).addTo(mapInstance);
+
+      } catch (e) {
+        console.error("Failed to load heatmap data", e);
+      }
+    }
+
+    // Language Helper
+    function setLang(code, name) {
+      changeLanguage(code);
+      document.getElementById('currentLangLabel').innerText = name;
+      // Close dropdown (css group-hover handles it, but creating a cleaner UI might need JS, for now CSS hover is fine as requested "scrolling button")
+      // To persist label on load:
+      localStorage.setItem('netra_lang_name', name);
+    }
+
+    // On load, set label
+    window.addEventListener('load', () => {
+      const name = localStorage.getItem('netra_lang_name') || 'English';
+      const label = document.getElementById('currentLangLabel');
+      if (label) label.innerText = name;
+    });
 
     // Hook into showSection to ensuring map renders correctly
     const originalShowSection = showSection;
@@ -830,6 +934,7 @@
   </script>
 
 
+  <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
 </body>
 
 </html>

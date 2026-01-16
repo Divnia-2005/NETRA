@@ -1,55 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>NETRA — Intelligent Security System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Google Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--accent);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
-
-.logo svg {
-  color: var(--accent);
-  filter: drop-shadow(0 0 8px rgba(19, 236, 91, 0.6));
-}
-
+    /* VARIABLES */
     :root {
-      --bg-main: #0b1a12;
-      --bg-dark: #102216;
-      --bg-card: #1a2e22;
+      --bg-main: #050b07;
+      --bg-dark: #020402;
+      --bg-card: rgba(26, 46, 34, 0.6);
       --accent: #13ec5b;
       --accent-soft: #22c55e;
+      --accent-glow: rgba(19, 236, 91, 0.5);
       --text-main: #e5ffe9;
       --text-muted: #9fe7c1;
-      --border: #1f4d36;
+      --border: rgba(31, 77, 54, 0.5);
+      --glass: rgba(16, 34, 22, 0.75);
     }
 
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'Outfit', sans-serif;
+      scroll-behavior: smooth;
     }
 
     body {
       background:
-        linear-gradient(rgba(11, 26, 18, 0.92), rgba(16, 34, 22, 0.95)),
+        linear-gradient(135deg, rgba(5, 11, 7, 0.96), rgba(2, 4, 3, 0.98)),
         url("/static/images/loginpg.jpg");
       background-size: cover;
       background-position: center;
+      background-attachment: fixed;
       color: var(--text-main);
       min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-dark);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-soft);
+    }
+
+    /* PRELOADER */
+    #preloader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-dark);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    .loader-content {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .loader-logo {
+      width: 80px;
+      height: 80px;
+      color: var(--accent);
+      animation: pulse-glow 2s infinite ease-in-out;
+    }
+
+    .loader-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--accent);
+      text-transform: uppercase;
+      animation: fade-pulse 1.5s infinite alternate;
+    }
+
+    @keyframes pulse-glow {
+      0% {
+        transform: scale(0.95);
+        filter: drop-shadow(0 0 10px rgba(19, 236, 91, 0.3));
+      }
+
+      50% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 25px rgba(19, 236, 91, 0.6));
+      }
+
+      100% {
+        transform: scale(0.95);
+        filter: drop-shadow(0 0 10px rgba(19, 236, 91, 0.3));
+      }
+    }
+
+    @keyframes fade-pulse {
+      from {
+        opacity: 0.6;
+      }
+
+      to {
+        opacity: 1;
+        text-shadow: 0 0 15px var(--accent);
+      }
     }
 
     /* NAVBAR */
@@ -58,31 +135,72 @@
       justify-content: space-between;
       align-items: center;
       padding: 20px 60px;
-      background: rgba(16, 34, 22, 0.85);
-      backdrop-filter: blur(10px);
+      background: rgba(6, 15, 10, 0.8);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
       border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 100;
+      transition: all 0.3s ease;
     }
 
-    header h1 {
+    header.scrolled {
+      padding: 15px 60px;
+      background: rgba(6, 15, 10, 0.95);
+      border-bottom: 1px solid var(--accent);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       color: var(--accent);
       font-size: 26px;
       font-weight: 800;
       letter-spacing: 1px;
+      text-decoration: none;
+    }
+
+    .logo svg {
+      color: var(--accent);
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+      transition: transform 0.3s ease;
+    }
+
+    .logo:hover svg {
+      transform: rotate(180deg);
     }
 
     nav a {
       color: var(--text-muted);
-      margin-left: 25px;
+      margin-left: 30px;
       text-decoration: none;
       font-weight: 600;
+      font-size: 0.95rem;
       transition: 0.3s;
+      position: relative;
+    }
+
+    nav a::after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 2px;
+      bottom: -4px;
+      left: 0;
+      background-color: var(--accent);
+      transition: width 0.3s ease;
+      box-shadow: 0 0 8px var(--accent);
     }
 
     nav a:hover {
       color: var(--accent);
+    }
+
+    nav a:hover::after {
+      width: 100%;
     }
 
     /* HERO */
@@ -94,269 +212,506 @@
       align-items: center;
       text-align: center;
       padding: 40px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(19, 236, 91, 0.1) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: -1;
+      animation: pulse-bg 4s infinite alternate;
+    }
+
+    @keyframes pulse-bg {
+      0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0.5;
+      }
+
+      100% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0.8;
+      }
     }
 
     .hero h2 {
-      font-size: 3.8rem;
+      font-size: 4.5rem;
       font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.1;
+      margin-bottom: 10px;
+      animation: fadeInUp 0.8s ease-out forwards;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    .hero h2 span {
       color: var(--accent);
-      text-shadow: 0 0 25px rgba(19, 236, 91, 0.35);
+      text-shadow: 0 0 30px rgba(19, 236, 91, 0.4);
     }
 
     .hero p {
-      margin-top: 20px;
-      max-width: 650px;
-      font-size: 1.1rem;
+      margin-top: 25px;
+      max-width: 700px;
+      font-size: 1.2rem;
       color: var(--text-muted);
-      line-height: 1.6;
+      line-height: 1.7;
+      animation: fadeInUp 0.8s ease-out 0.2s forwards;
+      opacity: 0;
+      transform: translateY(30px);
     }
 
     .hero-buttons {
-      margin-top: 40px;
+      margin-top: 50px;
       display: flex;
-      gap: 20px;
+      gap: 25px;
       flex-wrap: wrap;
       justify-content: center;
+      animation: fadeInUp 0.8s ease-out 0.4s forwards;
+      opacity: 0;
+      transform: translateY(30px);
     }
 
     .btn-primary {
       background: var(--accent);
-      color: black;
-      padding: 14px 30px;
-      border-radius: 10px;
+      color: #000;
+      padding: 16px 36px;
+      border-radius: 50px;
       font-weight: 700;
+      font-size: 1.1rem;
       text-decoration: none;
-      box-shadow: 0 0 30px rgba(19, 236, 91, 0.45);
-      transition: 0.3s;
+      box-shadow: 0 0 20px rgba(19, 236, 91, 0.4);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: width 0.3s ease;
+      z-index: -1;
     }
 
     .btn-primary:hover {
-      background: var(--accent-soft);
-      box-shadow: 0 0 40px rgba(19, 236, 91, 0.75);
-      transform: translateY(-2px);
+      box-shadow: 0 0 40px rgba(19, 236, 91, 0.7);
+      transform: translateY(-3px);
+    }
+
+    .btn-primary:hover::before {
+      width: 100%;
     }
 
     .btn-outline {
-      border: 1px solid var(--accent);
+      border: 2px solid var(--accent);
       color: var(--accent);
-      padding: 14px 30px;
-      border-radius: 10px;
+      padding: 14px 34px;
+      border-radius: 50px;
       font-weight: 700;
+      font-size: 1.1rem;
       text-decoration: none;
-      transition: 0.3s;
+      transition: all 0.3s ease;
+      background: transparent;
     }
 
     .btn-outline:hover {
-      background: var(--accent);
-      color: black;
+      background: rgba(19, 236, 91, 0.1);
+      box-shadow: 0 0 20px rgba(19, 236, 91, 0.2);
+      transform: translateY(-3px);
     }
 
     /* FEATURES */
     .features {
-      padding: 80px 60px;
+      padding: 100px 60px;
       background: var(--bg-dark);
+      position: relative;
     }
 
     .features h3 {
       text-align: center;
-      font-size: 2.4rem;
-      margin-bottom: 50px;
-      color: var(--accent);
+      font-size: 3rem;
+      margin-bottom: 70px;
+      color: var(--text-main);
+      position: relative;
+      display: inline-block;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .features h3::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 4px;
+      background: var(--accent);
+      margin: 15px auto 0;
+      border-radius: 2px;
+      box-shadow: 0 0 10px var(--accent);
     }
 
     .feature-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 30px;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 40px;
     }
 
     .feature-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 30px;
-      transition: 0.3s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      /* Hidden initially for scroll reveal */
+      transform: translateY(40px);
+    }
+
+    .feature-card.reveal {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Staggered transition delays handled in JS or CSS nth-child if static */
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
     }
 
     .feature-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 0 30px rgba(19, 236, 91, 0.25);
+      transform: translateY(-10px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      border-color: var(--accent);
+    }
+
+    .feature-card:hover::before {
+      transform: translateX(100%);
+      transition: transform 0.8s linear;
     }
 
     .feature-card h4 {
-      margin-bottom: 12px;
+      margin-bottom: 15px;
       color: var(--accent);
-      font-size: 1.3rem;
+      font-size: 1.5rem;
+      font-weight: 700;
     }
 
     .feature-card p {
       color: var(--text-muted);
-      font-size: 0.95rem;
-      line-height: 1.5;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    /* ANIMATIONS KEYFRAMES */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* FOOTER */
-  .footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
+    .footer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      padding: 50px 20px;
+      background: #020805;
+      border-top: 1px solid var(--border);
+    }
 
-.footer-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--accent);
-  font-weight: 800;
-  letter-spacing: 1px;
-}
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-main);
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: 1px;
+    }
 
-.footer-logo svg {
-  color: var(--accent);
-  filter: drop-shadow(0 0 6px rgba(19, 236, 91, 0.5));
-}
+    .footer-logo svg {
+      color: var(--accent);
+      filter: drop-shadow(0 0 6px var(--accent));
+    }
+
+    .footer p {
+      color: #5a7565;
+      font-size: 0.9rem;
+    }
 
 
     @media (max-width: 768px) {
       header {
         padding: 20px;
       }
-      .hero h2 {
-        font-size: 2.6rem;
+
+      header h1 {
+        font-size: 1.2rem;
       }
+
+      nav {
+        display: none;
+        /* Mobile menu could be added here */
+      }
+
+      .hero h2 {
+        font-size: 2.8rem;
+      }
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* SCROLL TO TOP BTN */
+    #scrollToTop {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 50px;
+      height: 50px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 20px rgba(19, 236, 91, 0.4);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      z-index: 99;
+    }
+
+    #scrollToTop.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    #scrollToTop:hover {
+      background: var(--accent-soft);
+      box-shadow: 0 0 30px rgba(19, 236, 91, 0.6);
+      transform: translateY(-5px);
     }
   </style>
 </head>
 
 <body>
 
-<!-- NAVBAR -->
-<header>
-  <h1 class="logo">
-  <!-- Eye Symbol -->
-  <svg
-    width="28"
-    height="28"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z"
-      stroke="currentColor"
-      stroke-width="2"
-      fill="currentColor"
-      fill-opacity="0.15"
-    />
-    <circle cx="12" cy="12" r="3" fill="currentColor" />
-  </svg>
-
-  NETRA
-</h1>
-
-  <nav>
-    <a href="#features">Features</a>
-    <a href="/login">Login</a>
-    <a href="/register">Register</a>
-  </nav>
-</header>
-
-<!-- HERO -->
-<section class="hero">
-  <h2>Intelligent Surveillance.<br>Absolute Control.</h2>
-  <p>
-    NETRA is an AI-powered security and monitoring platform that delivers
-    real-time surveillance, smart alerts, and centralized command dashboards
-    for administrators and officers.
-  </p>
-
-  <div class="hero-buttons">
-    <a href="/login" class="btn-primary">Secure Login</a>
-    <a href="#features" class="btn-outline">Explore Features</a>
-  </div>
-</section>
-
-<!-- FEATURES -->
-<section class="features" id="features">
-  <h3>Why Choose NETRA?</h3>
-
-  <div class="feature-grid">
-    <div class="feature-card">
-      <h4>AI Threat Detection</h4>
-      <p>
-        Intelligent motion and anomaly detection powered by real-time analytics
-        to minimize false alerts.
-      </p>
-    </div>
-
-    <div class="feature-card">
-      <h4>Live Monitoring</h4>
-      <p>
-        Monitor multiple camera feeds and zones from a centralized, responsive
-        dashboard.
-      </p>
-    </div>
-
-    <div class="feature-card">
-      <h4>Role-Based Access</h4>
-      <p>
-        Separate dashboards for administrators and officers with secure access
-        control.
-      </p>
-    </div>
-
-    <div class="feature-card">
-      <h4>Instant Alerts</h4>
-      <p>
-        Receive alerts instantly and take action with acknowledgment and logging
-        support.
-      </p>
-    </div>
-
-    <div class="feature-card">
-      <h4>System Health</h4>
-      <p>
-        Track uptime, device status, and performance metrics in real time.
-      </p>
-    </div>
-
-    <div class="feature-card">
-      <h4>Secure Authentication</h4>
-      <p>
-        Login via email/password or Google OAuth with encrypted sessions.
-      </p>
+  <!-- PRELOADER -->
+  <div id="preloader">
+    <div class="loader-content">
+      <svg class="loader-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z" stroke="currentColor" stroke-width="2"
+          fill="currentColor" fill-opacity="0.15" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" />
+      </svg>
+      <div class="loader-text">NETRA</div>
     </div>
   </div>
-</section>
 
-<!-- FOOTER -->
-<footer class="footer">
-  <div class="footer-logo">
-    <!-- Eye Symbol -->
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z"
-        stroke="currentColor"
-        stroke-width="2"
-        fill="currentColor"
-        fill-opacity="0.15"
-      />
-      <circle cx="12" cy="12" r="3" fill="currentColor" />
+  <!-- NAVBAR -->
+  <header id="navbar">
+    <a href="#" class="logo">
+      <!-- Eye Symbol -->
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z" stroke="currentColor" stroke-width="2"
+          fill="currentColor" fill-opacity="0.15" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" />
+      </svg>
+      NETRA
+    </a>
+
+    <nav>
+      <a href="#features">Features</a>
+      <a href="/login">Login</a>
+      <a href="/register">Register</a>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <h2>Intelligent Surveillance.<br><span>Absolute Control.</span></h2>
+    <p>
+      NETRA is an AI-powered security and monitoring platform that delivers
+      real-time surveillance, smart alerts, and centralized command dashboards
+      for administrators and officers.
+    </p>
+
+    <div class="hero-buttons">
+      <a href="/login" class="btn-primary">Secure Login</a>
+      <a href="#features" class="btn-outline">Explore Features</a>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <h3>Why Choose NETRA?</h3>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h4>AI Threat Detection</h4>
+        <p>
+          Intelligent motion and anomaly detection powered by real-time analytics
+          to minimize false alerts.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <h4>Live Monitoring</h4>
+        <p>
+          Monitor multiple camera feeds and zones from a centralized, responsive
+          dashboard.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <h4>Role-Based Access</h4>
+        <p>
+          Separate dashboards for administrators and officers with secure access
+          control.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <h4>Instant Alerts</h4>
+        <p>
+          Receive alerts instantly and take action with acknowledgment and logging
+          support.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <h4>System Health</h4>
+        <p>
+          Track uptime, device status, and performance metrics in real time.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <h4>Secure Authentication</h4>
+        <p>
+          Login via email/password or Google OAuth with encrypted sessions.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scroll To Top Button -->
+  <button id="scrollToTop" onclick="scrollToTop()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 15l-6-6-6 6" />
     </svg>
+  </button>
 
-    <span>NETRA</span>
-  </div>
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z" stroke="currentColor" stroke-width="2"
+          fill="currentColor" fill-opacity="0.15" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" />
+      </svg>
+      <span>NETRA</span>
+    </div>
 
-  <p>© 2026 NETRA Security Systems • Built for intelligent protection</p>
-</footer>
+    <p>© 2026 NETRA Security Systems • Built for intelligent protection</p>
+  </footer>
 
+  <script>
+    // Loading Screen
+    window.addEventListener('load', () => {
+      const preloader = document.getElementById('preloader');
+      setTimeout(() => {
+        preloader.style.opacity = '0';
+        preloader.style.visibility = 'hidden';
+      }, 800); // Small delay for effect
+    });
+
+    // Scroll Animations (Intersection Observer)
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: "0px 0px -50px 0px"
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('reveal');
+          observer.unobserve(entry.target); // Only animate once
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.feature-card').forEach((card, index) => {
+      // Add a slight stagger to the animation delay via inline style
+      card.style.transitionDelay = `${index * 100}ms`;
+      observer.observe(card);
+    });
+
+    // Navbar scroll effect
+    window.addEventListener('scroll', () => {
+      const navbar = document.getElementById('navbar');
+      const scrollBtn = document.getElementById('scrollToTop');
+
+      if (window.scrollY > 50) {
+        navbar.classList.add('scrolled');
+      } else {
+        navbar.classList.remove('scrolled');
+      }
+
+      // Scroll to Top Button Visibility
+      if (window.scrollY > 300) {
+        scrollBtn.classList.add('show');
+      } else {
+        scrollBtn.classList.remove('show');
+      }
+    });
+
+    function scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  </script>
 
 </body>
+
 </html>

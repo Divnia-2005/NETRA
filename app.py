@@ -522,6 +522,30 @@ def update_alert_status():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/api/heatmap_data")
+def heatmap_data():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    # Mock data generation centered around New Delhi (28.6139, 77.2090)
+    # in a real scenario, this would come from the database 'alerts' table columns lat/lng
+    heatmap_points = []
+    
+    # Base coords
+    base_lat = 28.6139
+    base_lng = 77.2090
+    
+    # Generate 50 random points with higher intensity for visibility
+    for _ in range(50):
+        # Random offset within ~3km (tighter cluster)
+        lat_offset = (random.random() - 0.5) * 0.04
+        lng_offset = (random.random() - 0.5) * 0.04
+        intensity = random.uniform(0.5, 1.0) # Higher minimum intensity
+        
+        heatmap_points.append([base_lat + lat_offset, base_lng + lng_offset, intensity])
+        
+    return jsonify(heatmap_points)
+
 # ---------------- EXPORT REPORTS ----------------
 @app.route("/export_reports")
 def export_reports():
@@ -531,19 +555,46 @@ def export_reports():
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     
-    # Check if there are pending users
-    PENDING_USERS = []
-    try:
-        cur.execute("SELECT * FROM users WHERE status='pending'")
-        PENDING_USERS = cur.fetchall()
-    except:
-        pass # In case column doesn't exist yet in dev
-        
+    cur.execute("""
+        SELECT id, created_at, source, message, status, severity
+        FROM alerts
+        ORDER BY created_at DESC
+    """)
+    alerts = cur.fetchall()
+    cur.close()
     conn.close()
-
-    return render_template("dashboard_admin.html", pending_users=PENDING_USERS)
-
-    return jsonify({"success": True})
+    
+    # Create Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Reports"
+    
+    # Headers
+    headers = ["ID", "Timestamp", "Source", "Message", "Status", "Severity"]
+    ws.append(headers)
+    
+    # Data
+    for alert in alerts:
+        ws.append([
+            alert["id"],
+            alert["created_at"].strftime("%Y-%m-%d %H:%M:%S") if alert["created_at"] else "",
+            alert["source"],
+            alert["message"],
+            alert["status"],
+            alert["severity"]
+        ])
+        
+    # Save to BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'netra_reports_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
 
 @app.route("/api/update_profile", methods=["POST"])
 def update_profile():
@@ -596,46 +647,88 @@ def update_user_status():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-    cur.execute("""
-        SELECT id, created_at, source, message, status, severity
-        FROM alerts
-        ORDER BY created_at DESC
-    """)
-    alerts = cur.fetchall()
+
+
+
+# ---------------- CHATBOT ----------------
+# ---------------- CHATBOT ----------------
+from deep_translator import GoogleTranslator
+
+@app.route("/api/chatbot", methods=["POST"])
+def chatbot_api():
+    if "user" not in session:
+        return jsonify({"response": "I can only speak to authorized personnel. Please login."}), 401
+
+    data = request.get_json()
+    raw_msg = data.get("message", "").strip()
+    target_lang = data.get("lang", "en") # Default to English
+
+    # 1. Translate Input to English if needed
+    msg_en = raw_msg.lower()
+    if target_lang != 'en':
+        try:
+            msg_en = GoogleTranslator(source='auto', target='en').translate(raw_msg).lower()
+        except Exception as e:
+            print(f"Translation Error (Input): {e}")
+            # Fallback to raw message if translation fails
+            msg_en = raw_msg.lower()
+
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    
+    response_en = "I didn't understand that command."
+    
+    # Process logic using English text (msg_en)
+    if "status" in msg_en or "report" in msg_en:
+        cur.execute("SELECT COUNT(*) as cnt FROM alerts WHERE status!='Resolved'")
+        pending = cur.fetchone()['cnt']
+        cur.execute("SELECT COUNT(*) as cnt FROM users WHERE status='approved'")
+        officers = cur.fetchone()['cnt']
+        
+        severity = "Normal" if pending == 0 else "High Alert" if pending > 5 else "Elevated"
+        response_en = f"System Status: {severity}. {pending} active alerts. {officers} officers registered."
+
+    elif "alert" in msg_en:
+        cur.execute("SELECT severity, message FROM alerts WHERE status!='Resolved' ORDER BY created_at DESC LIMIT 3")
+        alerts = cur.fetchall()
+        if not alerts:
+             response_en = "No active alerts at this time."
+        else:
+             lines = [f"[{a['severity']}] {a['message']}" for a in alerts]
+             response_en = "Recent Alerts: " + "; ".join(lines)
+    
+    elif "officer" in msg_en:
+        cur.execute("SELECT name FROM users WHERE status='approved' LIMIT 5")
+        users = cur.fetchall()
+        names = ", ".join([u['name'] for u in users])
+        response_en = f"Active Officers: {names}..."
+
+    elif "message" in msg_en or "contact" in msg_en or "admin" in msg_en:
+        response_en = "To contact the Admin or other officers, please use the 'Messages' section in your dashboard sidebar."
+
+    elif "hello" in msg_en or "hi" in msg_en:
+        response_en = f"Hello {session['user']['name']}. How can I assist you with security operations?"
+
+    elif "help" in msg_en:
+        response_en = "Commands: 'status', 'alerts', 'report', 'officers'"
+    
+    else:
+        response_en = "I didn't quite catch that, Officer. Try asking for 'status' or 'alerts'."
+    
     cur.close()
     conn.close()
-    
-    # Create Excel
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Reports"
-    
-    # Headers
-    headers = ["ID", "Timestamp", "Source", "Message", "Status", "Severity"]
-    ws.append(headers)
-    
-    # Data
-    for alert in alerts:
-        ws.append([
-            alert["id"],
-            alert["created_at"].strftime("%Y-%m-%d %H:%M:%S") if alert["created_at"] else "",
-            alert["source"],
-            alert["message"],
-            alert["status"],
-            alert["severity"]
-        ])
-        
-    # Save to BytesIO
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
-    
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name=f'netra_reports_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    )
+
+    # 2. Translate Output to Target Language if needed
+    final_response = response_en
+    if target_lang != 'en':
+        try:
+            final_response = GoogleTranslator(source='en', target=target_lang).translate(response_en)
+        except Exception as e:
+            print(f"Translation Error (Output): {e}")
+            # Fallback to English response
+            final_response = response_en
+
+    return jsonify({"response": final_response})
 
 
 # ---------------- RUN APP ----------------

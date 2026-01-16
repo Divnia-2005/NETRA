@@ -6,6 +6,9 @@
   <title>Admin Dashboard — NETRA</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
   <!-- Google Fonts: Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +33,7 @@
     .gradient-text {
       background: linear-gradient(to right, #4ade80, #22d3ee);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -167,6 +171,36 @@
       NETRA Admin
     </span>
 
+    <!-- Language Selector -->
+    <!-- Custom Language Selector -->
+    <!-- Custom Language Selector -->
+    <div class="relative mr-4 group z-50">
+      <button id="langBtn"
+        class="flex items-center gap-2 bg-[#102216] text-[#13ec5b] border border-[#13ec5b] text-xs rounded px-3 py-1.5 focus:outline-none hover:bg-[#13ec5b]/10 transition">
+        <span id="currentLangLabel">Language</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <!-- Dropdown Menu -->
+      <div class="absolute right-0 top-full pt-1 w-40 hidden group-hover:block z-50">
+        <div class="bg-[#0a160f] border border-[#13ec5b]/30 rounded-lg shadow-xl overflow-hidden">
+          <div class="max-h-60 overflow-y-auto custom-scrollbar-chat p-1 space-y-1">
+            <button onclick="setLang('en', 'English')" class="lang-opt">English</button>
+            <button onclick="setLang('hi', 'Hindi')" class="lang-opt">Hindi</button>
+            <button onclick="setLang('ml', 'Malayalam')" class="lang-opt">Malayalam</button>
+            <button onclick="setLang('fr', 'French')" class="lang-opt">French</button>
+            <button onclick="setLang('es', 'Spanish')" class="lang-opt">Spanish</button>
+            <button onclick="setLang('zh', 'Chinese')" class="lang-opt">Chinese</button>
+            <button onclick="setLang('de', 'German')" class="lang-opt">German</button>
+            <button onclick="setLang('ja', 'Japanese')" class="lang-opt">Japanese</button>
+            <button onclick="setLang('ru', 'Russian')" class="lang-opt">Russian</button>
+            <button onclick="setLang('ar', 'Arabic')" class="lang-opt">Arabic</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Notification Bell -->
     <div class="relative mr-4 cursor-pointer"
       onclick="markSeen(); showSection('messages', document.querySelector('[onclick*=\'messages\']'));">
@@ -200,13 +234,14 @@
     </div>
 
     <nav class="space-y-2">
-      <button onclick="showSection('overview', this)" class="nav-btn active">Overview</button>
-      <button onclick="showSection('management', this)" class="nav-btn">Management</button>
-      <button onclick="showSection('alerts', this)" class="nav-btn">Alerts</button>
-      <button onclick="showSection('messages', this)" class="nav-btn">Messages</button>
-      <button onclick="showSection('monitoring', this)" class="nav-btn">Live Monitoring</button>
-      <button onclick="showSection('health', this)" class="nav-btn">System Health</button>
-      <button onclick="showSection('config', this)" class="nav-btn">Configuration</button>
+      <button onclick="showSection('overview', this)" class="nav-btn active" data-i18n="overview">Overview</button>
+      <button onclick="showSection('map', this)" class="nav-btn" data-i18n="tactical_map">Tactical Map</button>
+      <button onclick="showSection('management', this)" class="nav-btn" data-i18n="management">Management</button>
+      <button onclick="showSection('alerts', this)" class="nav-btn" data-i18n="alerts">Alerts</button>
+      <button onclick="showSection('messages', this)" class="nav-btn" data-i18n="messages">Messages</button>
+      <button onclick="showSection('monitoring', this)" class="nav-btn" data-i18n="monitoring">Live Monitoring</button>
+      <button onclick="showSection('health', this)" class="nav-btn" data-i18n="health">System Health</button>
+      <button onclick="showSection('config', this)" class="nav-btn" data-i18n="config">Configuration</button>
       <button onclick="showSection('profile', this)" class="nav-btn">Profile</button>
 
 
@@ -226,29 +261,34 @@
 
       <!-- 1. System Summary Cards -->
       <div>
-        <h1 class="text-3xl font-bold mb-6 tracking-tight">System <span class="gradient-text">Overview</span></h1>
+        <h1 class="text-3xl font-bold mb-6 tracking-tight"><span data-i18n="system_overview">System Overview</span></h1>
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
-            <h3 class="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold mb-2">Total Users</h3>
+            <h3 class="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold mb-2"
+              data-i18n="total_users">Total Users</h3>
             <p class="text-3xl font-bold text-white">{{ stats.users }}</p>
           </div>
           <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
-            <h3 class="text-[0.65rem] text-emerald-400 uppercase tracking-widest font-semibold mb-2">Active Officers
+            <h3 class="text-[0.65rem] text-emerald-400 uppercase tracking-widest font-semibold mb-2"
+              data-i18n="active_officers">Active Officers
             </h3>
             <p class="text-3xl font-bold text-emerald-300">{{ stats.officers }}</p>
           </div>
           <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
-            <h3 class="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold mb-2">Total Cases</h3>
+            <h3 class="text-[0.65rem] text-gray-400 uppercase tracking-widest font-semibold mb-2"
+              data-i18n="total_cases">Total Cases</h3>
             <p class="text-3xl font-bold text-white">{{ stats.cases }}</p>
           </div>
           <div
             class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1 relative overflow-hidden group">
             <div class="absolute inset-0 bg-yellow-500/5 group-hover:bg-yellow-500/10 transition"></div>
-            <h3 class="text-[0.65rem] text-yellow-500 uppercase tracking-widest font-semibold mb-2">Pending</h3>
+            <h3 class="text-[0.65rem] text-yellow-500 uppercase tracking-widest font-semibold mb-2" data-i18n="pending">
+              Pending</h3>
             <p class="text-3xl font-bold text-yellow-400 relative z-10">{{ stats.pending }}</p>
           </div>
           <div class="glass p-4 rounded-xl text-center transition-all duration-300 hover:-translate-y-1">
-            <h3 class="text-[0.65rem] text-blue-400 uppercase tracking-widest font-semibold mb-2">Resolved</h3>
+            <h3 class="text-[0.65rem] text-blue-400 uppercase tracking-widest font-semibold mb-2" data-i18n="resolved">
+              Resolved</h3>
             <p class="text-3xl font-bold text-blue-300">{{ stats.resolved }}</p>
           </div>
         </div>
@@ -275,7 +315,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Feed -->
         <div class="lg:col-span-2 glass p-6 rounded-2xl">
-          <h3 class="panel-title mb-6 text-gray-200 font-semibold">Recent Activity</h3>
+          <h3 class="panel-title mb-6 text-gray-200 font-semibold" data-i18n="recent_activity">Recent Activity</h3>
           <div class="space-y-4 max-h-60 overflow-y-auto custom-scrollbar pr-2">
             {% for item in activity_feed %}
             <div class="flex gap-4 items-start border-b border-white/5 pb-3 last:border-0 last:pb-0">
@@ -335,31 +375,46 @@
 
       <!-- 4. Quick Navigation -->
       <div>
-        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Quick Actions</h3>
+        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4" data-i18n="quick_actions">Quick
+          Actions</h3>
         <div class="flex flex-wrap gap-4">
           <button onclick="showSection('management')"
             class="glass hover:bg-white/10 text-emerald-400 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
-            <span class="text-xl group-hover:scale-110 transition-transform">👥</span> <span
-              class="text-sm font-medium">Review Pending</span>
+            <span class="text-xl group-hover:scale-110 transition-transform">👥</span> <span class="text-sm font-medium"
+              data-i18n="review_pending">Review Pending</span>
           </button>
           <button onclick="showSection('management')"
             class="glass hover:bg-white/10 text-emerald-400 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
-            <span class="text-xl group-hover:scale-110 transition-transform">👮</span> <span
-              class="text-sm font-medium">Manage Officers</span>
+            <span class="text-xl group-hover:scale-110 transition-transform">👮</span> <span class="text-sm font-medium"
+              data-i18n="manage_officers">Manage Officers</span>
           </button>
           <button onclick="exportReports()"
             class="glass hover:bg-white/10 text-blue-400 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
-            <span class="text-xl group-hover:scale-110 transition-transform">📄</span> <span
-              class="text-sm font-medium">Global Reports</span>
+            <span class="text-xl group-hover:scale-110 transition-transform">📄</span> <span class="text-sm font-medium"
+              data-i18n="global_reports">Global Reports</span>
           </button>
         </div>
       </div>
 
     </section>
 
+    <!-- MAP VIEW -->
+    <section id="map" class="section hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" data-i18n="tactical_map">Tactical Map</h2>
+        <button onclick="toggleHeatmap()" data-i18n="toggle_heatmap"
+          class="bg-[#13ec5b]/20 text-[#13ec5b] px-3 py-1 rounded border border-[#13ec5b] hover:bg-[#13ec5b] hover:text-black transition text-sm font-bold">
+          Toggle Heatmap
+        </button>
+      </div>
+      <div class="glass p-2 rounded-xl">
+        <div id="adminMap" class="h-96 w-full rounded-lg z-0"></div>
+      </div>
+    </section>
+
     <!-- MANAGEMENT -->
     <section id="management" class="section hidden">
-      <h1 class="section-title">Management Hub</h1>
+      <h1 class="section-title" data-i18n="management">Management Hub</h1>
 
       <!-- PENDING APPROVALS -->
       {% if pending_users %}
@@ -437,7 +492,7 @@
 
     <!-- MESSAGES SECTION -->
     <section id="messages" class="section hidden">
-      <h2 class="section-title">Messages</h2>
+      <h2 class="section-title" data-i18n="messages">Messages</h2>
       <div id="messaging" class="glass p-6 rounded-xl border border-white/5 mb-6">
         <h3 class="panel-title mb-4 font-bold text-emerald-400">Comms Channel</h3>
 
@@ -629,7 +684,7 @@
 
     <!-- HEALTH -->
     <section id="health" class="section hidden">
-      <h1 class="section-title">System Health</h1>
+      <h1 class="section-title" data-i18n="health">System Health</h1>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="card">CPU Usage<br><span class="stat">42%</span></div>
@@ -638,7 +693,7 @@
       </div>
     </section>
     <section id="config" class="section hidden">
-      <h1 class="section-title">System Configuration</h1>
+      <h1 class="section-title" data-i18n="config">System Configuration</h1>
 
       <label class="block mb-4">
         Detection Sensitivity
@@ -709,53 +764,57 @@
       </div>
     </section>
 
+    {% include 'component_chatbot.html' %}
   </main>
   <script>
     /* ---------- DASHBOARD CHARTS ---------- */
     function loadCharts() {
-      // Data passed from backend would be better, but mock for layout verification
+      // Safe Data Injection
+      const pendingCount = Number("{{ stats.cases }}") - Number("{{ stats.resolved }}");
+      const resolvedCount = Number("{{ stats.resolved }}");
+
       // Status Distribution
       new Chart(document.getElementById("overviewStatusChart"), {
         type: "doughnut",
         data: {
           labels: ["Pending", "Resolved", "Investigating"],
           datasets: [{
-            data: [{{ stats.cases - stats.resolved }}, {{ stats.resolved }}, 0],
-        backgroundColor: ["#eab308", "#3b82f6", "#facc15"],
-        borderWidth: 0
-      }]
+            data: [pendingCount, resolvedCount, 0],
+            backgroundColor: ["#eab308", "#3b82f6", "#facc15"],
+            borderWidth: 0
+          }]
         },
-    options: {
-      responsive: true,
-        maintainAspectRatio: false,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { position: 'right', labels: { color: "#9ca3af" } } }
-    }
+        }
       });
 
-    // Activity Trend (Dummy Data for visual)
-    new Chart(document.getElementById("overviewActivityChart"), {
-      type: "line",
-      data: {
-        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        datasets: [{
-          label: "System Activity",
-          data: [12, 19, 3, 5, 2, 3, 10],
-          borderColor: "#13ec5b",
-          tension: 0.4,
-          fill: true,
-          backgroundColor: "rgba(19, 236, 91, 0.1)"
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { ticks: { color: "#6b7280" }, grid: { display: false } },
-          y: { ticks: { color: "#6b7280" }, grid: { color: "#374151" } }
+      // Activity Trend (Dummy Data for visual)
+      new Chart(document.getElementById("overviewActivityChart"), {
+        type: "line",
+        data: {
+          labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+          datasets: [{
+            label: "System Activity",
+            data: [12, 19, 3, 5, 2, 3, 10],
+            borderColor: "#13ec5b",
+            tension: 0.4,
+            fill: true,
+            backgroundColor: "rgba(19, 236, 91, 0.1)"
+          }]
         },
-        plugins: { legend: { display: false } }
-      }
-    });
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: "#6b7280" }, grid: { display: false } },
+            y: { ticks: { color: "#6b7280" }, grid: { color: "#374151" } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
     }
 
 
@@ -773,27 +832,80 @@
 
     /* Close sidebar logic moved to showSection */
 
+    /* ---------- LEAFLET MAP ---------- */
+    let mapInstance = null;
+    let heatLayer = null;
+
+    function initMap() {
+      if (mapInstance) return;
+      mapInstance = L.map('adminMap').setView([28.6139, 77.2090], 13);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(mapInstance);
+      L.marker([28.6139, 77.2090]).addTo(mapInstance).bindPopup("<b>HQ</b><br>Command Center").openPopup();
+
+      // Auto-load heatmap
+      setTimeout(toggleHeatmap, 500);
+    }
+
+    async function toggleHeatmap() {
+      if (!mapInstance) return;
+      if (heatLayer) {
+        mapInstance.removeLayer(heatLayer);
+        heatLayer = null;
+        return;
+      }
+      try {
+        const res = await fetch('/api/heatmap_data');
+        const points = await res.json();
+        heatLayer = L.heatLayer(points, {
+          radius: 30, blur: 20, maxZoom: 17,
+          gradient: { 0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red' }
+        }).addTo(mapInstance);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Language Helper
+    function setLang(code, name) {
+      changeLanguage(code);
+      document.getElementById('currentLangLabel').innerText = name;
+      localStorage.setItem('netra_lang_name', name);
+    }
+
+    // On load, set label
+    window.addEventListener('load', () => {
+      const name = localStorage.getItem('netra_lang_name') || 'English';
+      const label = document.getElementById('currentLangLabel');
+      if (label) label.innerText = name;
+    });
+
     /* ---------- SECTION SWITCHING ---------- */
     function showSection(id, btn = null) {
-      document.querySelectorAll(".section").forEach(sec =>
-        sec.classList.add("hidden")
-      );
+      document.querySelectorAll(".section").forEach(sec => sec.classList.add("hidden"));
+      const target = document.getElementById(id);
+      if (target) target.classList.remove("hidden");
 
-      document.getElementById(id)?.classList.remove("hidden");
-
-      document.querySelectorAll(".nav-btn").forEach(b =>
-        b.classList.remove("active")
-      );
-
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
       if (btn) btn.classList.add("active");
 
-      // Auto-hide sidebar on mobile
       // Auto-hide sidebar
       const sidebar = document.getElementById("sidebar");
       const overlay = document.getElementById("overlay");
       if (sidebar && !sidebar.classList.contains("-translate-x-full")) {
         sidebar.classList.add("-translate-x-full");
         overlay.classList.add("hidden");
+      }
+
+      // Map Resize
+      if (id === 'map') {
+        setTimeout(() => {
+          if (!mapInstance) initMap();
+          mapInstance.invalidateSize();
+        }, 100);
       }
     }
 
@@ -1007,7 +1119,21 @@
     .nav-btn.active {
       background: #1a2e22;
       color: #13ec5b;
+    }
 
+    .lang-opt {
+      width: 100%;
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      color: #d1d5db;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .lang-opt:hover {
+      background-color: rgba(19, 236, 91, 0.2);
+      color: #13ec5b;
     }
 
     .card {
@@ -1079,6 +1205,7 @@
     }
   </style>
 
+  <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
 </body>
 
 </html>

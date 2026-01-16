@@ -1,0 +1,229 @@
+<!-- Chatbot Component -->
+<style>
+    .custom-scrollbar-chat::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .custom-scrollbar-chat::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar-chat::-webkit-scrollbar-thumb {
+        background-color: rgba(34, 197, 94, 0.3);
+        border-radius: 10px;
+    }
+
+    .custom-scrollbar-chat::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(34, 197, 94, 0.6);
+    }
+</style>
+<div id="netra-chatbot" class="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
+
+    <!-- Chat Window -->
+    <!-- Fixed Height h-96 is essential for scrolling to work within it -->
+    <div id="chat-window"
+        class="relative pointer-events-auto hidden flex-col w-80 h-96 bg-[#0f2818]/95 backdrop-blur-md border border-green-500/30 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0">
+
+        <!-- Scroll Button -->
+        <button id="chat-scroll-btn" onclick="scrollToBottom()"
+            class="hidden absolute bottom-20 left-1/2 -translate-x-1/2 p-2 bg-green-500 hover:bg-green-400 rounded-full shadow-lg text-white z-50 transition-all duration-300 animate-bounce ring-2 ring-green-900">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+        </button>
+
+        <!-- Header -->
+        <div class="flex-none flex items-center justify-between p-3 bg-green-900/40 border-b border-green-500/20 z-40">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="font-bold text-green-400 text-sm tracking-wide">NETRA AI</span>
+            </div>
+            <button onclick="toggleChat()" class="text-gray-400 hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Messages Area -->
+        <!-- Native Scrolling enabled by overflow-y-auto -->
+        <!-- Messages Area -->
+        <!-- Native Scrolling enabled by overflow-y-auto -->
+        <!-- Added min-h-0 to ensure flex scrolling works reliably -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 text-sm min-h-0 custom-scrollbar-chat">
+            <!-- Initial Message -->
+            <div class="flex gap-2">
+                <div
+                    class="min-w-[24px] h-6 rounded-full bg-green-500/20 flex items-center justify-center text-[10px] text-green-400 border border-green-500/30">
+                    AI</div>
+                <div class="bg-white/5 p-2 rounded-lg rounded-tl-none text-gray-200 border border-white/5">
+                    System online. How can I assist you today?
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="flex-none p-3 bg-black/20 border-t border-white/5 z-40">
+            <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
+                <input id="chat-input" type="text" placeholder="Type command..."
+                    class="flex-1 bg-white/5 rounded px-3 py-1.5 text-sm text-white placeholder-gray-500 border border-transparent focus:border-green-500/50 focus:outline-none transition-colors">
+                <button type="submit"
+                    class="bg-green-600 hover:bg-green-500 text-white p-1.5 rounded transition-colors shadow-lg shadow-green-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 19l9-2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toggle Button -->
+    <button onclick="toggleChat()"
+        class="pointer-events-auto mt-4 w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-700 shadow-lg shadow-green-500/30 flex items-center justify-center text-white hover:scale-110 transition-transform duration-300 group ring-2 ring-green-400/50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 group-hover:rotate-12 transition-transform" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+    </button>
+</div>
+
+<script>
+    function toggleChat() {
+        const win = document.getElementById('chat-window');
+        if (win.classList.contains('hidden')) {
+            win.classList.remove('hidden');
+            setTimeout(() => {
+                win.classList.remove('scale-95', 'opacity-0');
+                win.classList.add('scale-100', 'opacity-100');
+                startScrollCheck(); // Start monitoring
+            }, 10);
+            document.getElementById('chat-input').focus();
+        } else {
+            win.classList.remove('scale-100', 'opacity-100');
+            win.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                win.classList.add('hidden');
+                stopScrollCheck(); // Stop monitoring
+            }, 300);
+        }
+    }
+
+    async function handleChatSubmit(e) {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if (!msg) return;
+
+        // Add User Message
+        addMessage(msg, 'user');
+        input.value = '';
+
+        // Simulate thinking or Call API
+        // For now, simple loading effect
+        const loadingId = addLoading();
+
+        try {
+            const res = await fetch('/api/chatbot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            });
+            const data = await res.json();
+
+            removeLoading(loadingId);
+            addMessage(data.response, 'ai');
+
+        } catch (err) {
+            console.error(err);
+            removeLoading(loadingId);
+            addMessage("Connection error. Please try again.", 'ai');
+        }
+    }
+
+    function addMessage(text, sender) {
+        const container = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = "flex gap-2 " + (sender === 'user' ? "flex-row-reverse" : "");
+
+        const avatar = sender === 'user'
+            ? `<div class="min-w-[24px] h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gray-300 border border-white/20">U</div>`
+            : `<div class="min-w-[24px] h-6 rounded-full bg-green-500/20 flex items-center justify-center text-[10px] text-green-400 border border-green-500/30">AI</div>`;
+
+        const bubble = `<div class="${sender === 'user' ? 'bg-green-600/20 text-green-100 border border-green-500/20' : 'bg-white/5 text-gray-200 border border-white/5'} p-2 rounded-lg ${sender === 'user' ? 'rounded-tr-none' : 'rounded-tl-none'} text-sm leading-relaxed max-w-[85%]">
+            ${text}
+        </div>`;
+
+        div.innerHTML = sender === 'user' ? (bubble + avatar) : (avatar + bubble);
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function addLoading() {
+        const container = document.getElementById('chat-messages');
+        const id = 'loading-' + Date.now();
+        const div = document.createElement('div');
+        div.id = id;
+        div.className = "flex gap-2";
+        div.innerHTML = `
+            <div class="min-w-[24px] h-6 rounded-full bg-green-500/20 flex items-center justify-center text-[10px] text-green-400 border border-green-500/30">AI</div>
+            <div class="bg-white/5 p-2 rounded-lg rounded-tl-none text-gray-200 border border-white/5 flex gap-1 items-center h-9">
+                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            </div>
+        `;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+        return id;
+    }
+
+    function removeLoading(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+
+    function scrollToBottom() {
+        const container = document.getElementById('chat-messages');
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
+
+    // --- ROBUST SCROLL LOGIC ---
+    let scrollInterval;
+
+    function startScrollCheck() {
+        checkScrollButton(); // check once immediately
+        if (scrollInterval) clearInterval(scrollInterval);
+        scrollInterval = setInterval(checkScrollButton, 500); // check every 500ms
+    }
+
+    function stopScrollCheck() {
+        if (scrollInterval) clearInterval(scrollInterval);
+    }
+
+    function checkScrollButton() {
+        const container = document.getElementById('chat-messages');
+        const btn = document.getElementById('chat-scroll-btn');
+        if (!container || !btn) return;
+
+        // Calculate distance from bottom
+        const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+
+        // Show button if > 20px from bottom (user scrolled up)
+        if (distance > 20) {
+            btn.classList.remove('hidden');
+        } else {
+            btn.classList.add('hidden');
+        }
+    }
+
+    // Also attach to scroll event for smoothness
+    const msgContainer = document.getElementById('chat-messages');
+    if (msgContainer) {
+        msgContainer.addEventListener('scroll', checkScrollButton);
+    }
+</script>
