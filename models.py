@@ -76,3 +76,30 @@ class Alert(db.Model):
     
     def __repr__(self):
         return f'<Alert {self.alert_type} @ {self.location}>'
+
+class Challan(db.Model):
+    """Model for traffic fines/challans."""
+    __tablename__ = 'challans'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    amount = db.Column(db.Float, nullable=False)
+    reason = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(50), default='Pending') # 'Pending', 'Paid'
+    payment_id = db.Column(db.String(100), nullable=True) # Razorpay Payment ID
+    issued_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    violator_name = db.Column(db.String(100), nullable=True)
+    violator_email = db.Column(db.String(120), nullable=True) # To send link
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    paid_at = db.Column(db.DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'amount': self.amount,
+            'reason': self.reason,
+            'status': self.status,
+            'payment_id': self.payment_id,
+            'violator_name': self.violator_name,
+            'created_at': self.created_at.isoformat(),
+            'paid_at': self.paid_at.isoformat() if self.paid_at else None
+        }

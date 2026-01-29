@@ -11,6 +11,36 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
+  <script>
+    // Stats Loading
+    async function loadOfficerStats() {
+      try {
+        const res = await fetch('/api/officer_stats');
+        const data = await res.json();
+        document.getElementById('statFines').innerText = data.fines_today || 0;
+        document.getElementById('statAlerts').innerText = data.resolved_total || 0;
+      } catch (e) { console.error(e); }
+    }
+
+    // Patrol Log
+    async function logPatrol() {
+      if (!confirm("Log your current location as Patrol Check-in?")) return;
+
+      // Mock Location
+      const loc = "Lat: 28.61, Lng: 77.21 (GPS Mock)";
+
+      try {
+        await fetch('/api/log_patrol', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ location: loc })
+        });
+        alert("✅ Patrol Point Logged!");
+      } catch (e) { alert("Error logging patrol"); }
+    }
+
+    window.addEventListener('load', loadOfficerStats);
+  </script>
   <!-- Google Fonts: Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -179,7 +209,9 @@
                bg-[#102216] border-b border-green-900 px-4">
 
     <!-- Hamburger -->
-    <button onclick="toggleSidebar()" class="text-[#13ec5b] focus:outline-none">
+    <button onclick="toggleSidebar()"
+      class="text-[#13ec5b] focus:outline-none focus:ring-2 focus:ring-[#13ec5b] rounded p-1"
+      aria-label="Toggle Navigation" title="Toggle Sidebar">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"
         stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -189,6 +221,41 @@
     <span class="font-bold text-[#13ec5b] text-lg flex-1">
       NETRA Officer
     </span>
+
+    <!-- SOS BUTTON -->
+    <button onclick="openSOSModal()" aria-label="Trigger SOS Emergency" title="Trigger SOS"
+      class="bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded-full font-bold animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)] mr-4 flex items-center gap-2 border border-red-400 focus:outline-none focus:ring-4 focus:ring-red-400">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+          clip-rule="evenodd" />
+      </svg>
+      SOS
+    </button>
+
+    <!-- NOTIFICATION BELL -->
+    <div class="relative mr-2 group z-50">
+      <button class="relative p-2 text-green-400 hover:text-white transition focus:outline-none">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        <span id="notificationDot"
+          class="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse hidden"></span>
+      </button>
+
+      <!-- Dropdown -->
+      <div
+        class="absolute right-0 top-full mt-2 w-80 bg-[#0a160f] border border-green-500/30 rounded-lg shadow-xl hidden group-hover:block z-50">
+        <div class="p-3 border-b border-white/5 flex justify-between items-center">
+          <h3 class="text-xs font-bold text-gray-400 uppercase">Notifications</h3>
+          <button onclick="markAllRead()" class="text-xs text-blue-400 hover:text-white">Mark Read</button>
+        </div>
+        <div id="notificationList" class="max-h-60 overflow-y-auto custom-scrollbar p-1">
+          <p class="text-center text-gray-500 text-xs py-4">Loading...</p>
+        </div>
+      </div>
+    </div>
 
     <!-- Language Selector -->
     <!-- Custom Language Selector -->
@@ -244,24 +311,60 @@
     <div>
       <h2 class="text-xl font-bold accent mb-6">NETRA Officer</h2>
       <!-- OFFICER PROFILE CARD -->
-      <div class="flex items-center gap-3 glass p-3 rounded mb-4">
-        <img id="officerPic" src="https://via.placeholder.com/60"
-          class="w-14 h-14 rounded-full object-cover border border-green-400">
+      <div class="flex items-center gap-3 bg-[#1a2e22] p-3 rounded">
+        <div class="relative">
+          <img id="officerPic" src="https://via.placeholder.com/60"
+            class="w-14 h-14 rounded-full object-cover border border-green-400">
+          <label for="profileUpload"
+            class="absolute bottom-0 right-0 bg-green-500 text-black rounded-full p-1 cursor-pointer hover:bg-white transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+            </svg>
+          </label>
+          <input type="file" id="profileUpload" class="hidden" accept="image/*" onchange="updateOfficerPic(event)">
+        </div>
         <div>
-          <p id="officerName" class="font-semibold">{{ session.user.name }}</p>
-          <p class="text-xs text-green-300">Security Officer</p>
+          <h3 id="officerName" class="font-bold text-white leading-tight">Officer</h3>
+          <p class="text-[0.65rem] text-green-400 uppercase tracking-wider">Active Duty</p>
         </div>
       </div>
 
+      <!-- NEW: Patrol Check-in -->
+      <button onclick="logPatrol()"
+        class="w-full bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 border border-blue-500/50 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 group">
+        <span>📍 Log Patrol Point</span>
+      </button>
 
-      <nav class="space-y-2">
-        <button class="nav-btn active" onclick="showSection('dashboard', this)" data-i18n="dashboard">Dashboard</button>
+      <!-- NEW: Mini Stats -->
+      <div class="grid grid-cols-2 gap-2 text-center text-xs">
+        <div class="glass p-2 rounded">
+          <p class="text-gray-400">Fines Today</p>
+          <p id="statFines" class="text-lg font-bold text-white">--</p>
+        </div>
+        <div class="glass p-2 rounded">
+          <p class="text-gray-400">Resolved</p>
+          <p id="statAlerts" class="text-lg font-bold text-green-400">--</p>
+        </div>
+      </div>
+
+      <nav class="space-y-2 mt-4">
+        <button onclick="showSection('overview', this)" class="nav-btn active">
+          <span class="mr-2">📊</span> <span data-i18n="overview">Overview</span>
+        </button>
+        <button class="nav-btn" onclick="showSection('cases', this)" data-i18n="cases">Case Files</button>
         <button class="nav-btn" onclick="showSection('map', this)" data-i18n="tactical_map">Tactical Map</button>
         <button class="nav-btn" onclick="showSection('alerts', this)" data-i18n="alerts">System Alerts</button>
         <button class="nav-btn" onclick="showSection('analysis', this)" data-i18n="analysis">Analysis</button>
         <button class="nav-btn" onclick="showSection('reports', this)" data-i18n="reports">Reports</button>
         <button class="nav-btn" onclick="showSection('messages', this)" data-i18n="messages">Messages</button>
+        <button class="nav-btn text-orange-400" onclick="showSection('ai_reviews', this); loadReviews()">
+          <span>⚠️ AI Reviews</span>
+        </button>
+        <button class="nav-btn" onclick="showSection('activity_log', this); loadActivityLogs()"
+          data-i18n="activity_log">Activity Log</button>
         <button class="nav-btn" onclick="showSection('settings', this)" data-i18n="settings">Settings</button>
+        <a href="/help" class="nav-btn" data-i18n="help">Help & FAQ</a>
       </nav>
     </div>
     <button class="nav-btn" onclick="showSection('profile', this)" data-i18n="profile">
@@ -284,17 +387,22 @@
 
       <!-- QUICK ACTIONS -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <button
-          class="bg-red-600/20 text-red-400 border border-red-600 px-4 py-3 rounded hover:bg-red-600 hover:text-white"
+        <button onclick="triggerAction('alarm')"
+          class="bg-red-600/20 text-red-400 border border-red-600 px-4 py-3 rounded hover:bg-red-600 hover:text-white transition"
           data-i18n="trigger_alarm">Trigger
           Alarm</button>
-        <button
-          class="bg-yellow-500/20 text-yellow-400 border border-yellow-500 px-4 py-3 rounded hover:bg-yellow-500 hover:text-black"
+        <button onclick="triggerAction('spotlight')"
+          class="bg-yellow-500/20 text-yellow-400 border border-yellow-500 px-4 py-3 rounded hover:bg-yellow-500 hover:text-black transition"
           data-i18n="spotlight">Spotlight</button>
-        <button class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]"
+        <button onclick="triggerAction('broadcast')"
+          class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b] transition"
           data-i18n="broadcast">Broadcast</button>
-        <button class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b]"
-          data-i18n="unlock_gates">Unlock Gates</button>
+        <button onclick="triggerAction('redirect')"
+          class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b] transition text-green-300"
+          data-i18n="redirect_crowd">Redirect Crowd</button>
+        <button onclick="openChallanModal()"
+          class="bg-blue-600/20 text-blue-400 border border-blue-600 px-4 py-3 rounded hover:bg-blue-600 hover:text-white transition"
+          data-i18n="issue_challan">Report Incident</button>
       </div>
 
       <!-- LIVE FEEDS -->
@@ -307,8 +415,9 @@
             <div class="rec-dot"></div> LIVE
           </div>
           <div class="scan-line"></div>
+          <div class="scan-line"></div>
           <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60">
+            class="w-full h-full object-cover opacity-60" alt="Live surveillance feed from Gate Camera">
         </div>
         <!-- Cam 2 -->
         <div class="cam-feed rounded-xl h-48 relative group">
@@ -318,7 +427,21 @@
           </div>
           <div class="scan-line" style="animation-delay: 1.5s;"></div>
           <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60">
+            class="w-full h-full object-cover opacity-60" alt="Live surveillance feed from Lobby Camera">
+        </div>
+      </div>
+    </section>
+
+    <!-- CROWD DENSITY MONITOR -->
+    <section class="section mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" data-i18n="crowd_density">Crowd Density Monitoring</h2>
+        <span class="text-xs text-gray-400 animate-pulse">● Live Analysis</span>
+      </div>
+      <div id="crowdContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Populated by JS -->
+        <div class="glass p-4 rounded text-center">
+          <p class="text-gray-500">Connecting to sensors...</p>
         </div>
       </div>
     </section>
@@ -385,6 +508,20 @@
                 {% else %}
                 <span class="text-gray-600 text-xs">No Action</span>
                 {% endif %}
+
+                <!-- Share Button -->
+                <button onclick="shareAlert('{{ alert.message|e }}', '{{ alert.source|e }}')"
+                  class="ml-2 text-blue-400 hover:text-white border border-blue-500/30 px-2 py-1 rounded text-xs transition focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                  aria-label="Share Alert" title="Share Alert">
+                  Share
+                </button>
+
+                <!-- Navigate Button -->
+                <button onclick="navigateToAlert('{{ alert.message|e }}')"
+                  class="ml-2 text-yellow-400 hover:text-white border border-yellow-500/30 px-2 py-1 rounded text-xs transition focus:ring-2 focus:ring-yellow-400 focus:outline-none"
+                  aria-label="View Location on Map" title="View location on map">
+                  📍
+                </button>
               </td>
             </tr>
             {% endfor %}
@@ -513,72 +650,387 @@
       </div>
     </section>
 
-    <!-- SETTINGS -->
-    <section id="settings" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Settings</h2>
-      <div class="glass p-6 rounded-xl max-w-lg">
-        <label class="block mb-4">
-          Alert Volume
-          <input type="range" class="w-full mt-2 accent-green-500">
-        </label>
-        <button
-          class="bg-[#13ec5b] text-black px-6 py-2 rounded hover:bg-green-400 font-bold shadow-lg shadow-green-500/20">
-          Save Settings
+    <!-- CASES SECTION -->
+    <section id="cases" class="section hidden">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold">My Case Files</h2>
+        <button onclick="openCreateCaseModal()"
+          class="bg-[#13ec5b] text-black px-4 py-2 rounded hover:bg-green-400 font-bold shadow-lg shadow-green-500/20 flex items-center gap-2">
+          <span>+</span> Create New Case
         </button>
+      </div>
+
+      <div class="glass p-6 rounded-xl border border-white/5">
+        <h3 class="panel-title mb-4 font-bold text-blue-400">Assigned Investigations</h3>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="text-gray-400 border-b border-gray-700">
+                <th class="py-3 px-4">Case ID</th>
+                <th class="py-3 px-4">Title</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4">Created Date</th>
+                <th class="py-3 px-4">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for case in my_cases %}
+              <tr class="border-b border-gray-800 hover:bg-white/5 transition">
+                <td class="py-3 px-4 font-mono text-green-400">{{ case.case_id }}</td>
+                <td class="py-3 px-4 font-bold">{{ case.title }}</td>
+                <td class="py-3 px-4">
+                  <span
+                    class="px-2 py-1 rounded text-xs border 
+                    {{ 'border-green-500/30 text-green-400 bg-green-500/10' if case.status=='Open' else 'border-gray-500/30 text-gray-400' }}">
+                    {{ case.status }}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-gray-400">{{ case.created_at }}</td>
+                <td class="py-3 px-4">
+                  <button onclick="openCaseDetails('{{ case.case_id }}')"
+                    class="text-blue-400 hover:text-blue-300 text-xs border border-blue-500/30 px-2 py-1 rounded">
+                    View Details
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+              {% if not my_cases %}
+              <tr>
+                <td colspan="5" class="py-8 text-center text-gray-500 italic">No assigned cases found.</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
+    <!-- CREATE CASE MODAL -->
+    <div id="createCaseModal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+      <div class="glass p-8 rounded-2xl max-w-lg w-full border border-green-500/30 shadow-2xl relative">
+        <h2 class="text-2xl font-bold text-white mb-6">Create New Investigation</h2>
 
-
-    <!-- PROFILE -->
-    <section id="profile" class="section hidden flex justify-center">
-      <div class="glass p-8 rounded-2xl max-w-lg w-full relative overflow-hidden">
-        <!-- Decoration -->
-        <div class="absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none">
-        </div>
-
-        <h2 class="text-xl font-bold mb-6 text-center">Officer Profile</h2>
-
-        <!-- Profile Picture -->
-        <div class="flex flex-col items-center gap-4 mb-6">
-          <div class="relative group">
-            <img id="officerPicPreview" src="https://via.placeholder.com/120"
-              class="w-28 h-28 rounded-full object-cover border-4 border-white/5 group-hover:border-green-400 transition-all duration-300 shadow-xl">
-            <div
-              class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none">
-              <span class="text-xs font-bold text-white">Change</span>
-            </div>
-          </div>
-          <input type="file" accept="image/*" onchange="updateOfficerPic(event)"
-            class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-500/10 file:text-green-400 hover:file:bg-green-500/20">
-        </div>
-
-        <!-- Profile Fields -->
         <div class="space-y-4">
           <div>
-            <label class="text-sm text-gray-400 ml-1">Username (Email)</label>
-            <input id="officerUsername" class="w-full glass p-3 rounded-lg text-white" value="{{ session.user.email }}"
-              readonly>
+            <label class="text-sm text-gray-400 block mb-1">Case Title</label>
+            <input id="caseTitle" type="text" placeholder="e.g. Suspicious Activity at Gate 4"
+              class="w-full glass p-3 rounded text-white border-white/10 focus:border-green-500 outline-none">
           </div>
 
           <div>
-            <label class="text-sm text-gray-400 ml-1">Full Name</label>
-            <input id="officerProfileName" class="w-full glass p-3 rounded-lg text-white"
-              value="{{ session.user.name }}" readonly>
+            <label class="text-sm text-gray-400 block mb-1">Description / Initial Report</label>
+            <textarea id="caseDesc" rows="4" placeholder="Describe the incident details..."
+              class="w-full glass p-3 rounded text-white border-white/10 focus:border-green-500 outline-none"></textarea>
           </div>
 
+          <div class="flex gap-4 mt-8 pt-4 border-t border-white/10">
+            <button onclick="closeCreateCaseModal()"
+              class="flex-1 py-3 rounded border border-gray-600 hover:bg-gray-800 text-gray-400">Cancel</button>
+            <button onclick="createCase()"
+              class="flex-1 py-3 rounded bg-green-600 hover:bg-green-500 text-white font-bold shadow-lg shadow-green-500/30">Create
+              Case</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CASE DETAILS & EVIDENCE MODAL -->
+    <div id="caseDetailsModal"
+      class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+      <div
+        class="glass p-8 rounded-2xl max-w-4xl w-full border border-blue-500/30 shadow-2xl relative h-[90vh] flex flex-col">
+        <div class="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
           <div>
-            <label class="text-sm text-gray-400 ml-1">Role</label>
-            <input class="w-full glass p-3 rounded-lg text-gray-400" value="{{ session.user.role|capitalize }}"
-              disabled>
+            <h2 id="cdTitle" class="text-2xl font-bold text-white">Case #ID</h2>
+            <p id="cdStatus" class="text-sm text-green-400 mt-1">Status: Open</p>
+          </div>
+          <div class="flex items-center gap-4">
+            <a id="exportReportBtn" href="#" target="_blank"
+              class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded text-sm transition font-bold flex items-center gap-2">
+              📄 Export Report
+            </a>
+            <button onclick="closeCaseDetailsModal()" class="text-gray-400 hover:text-white text-2xl">×</button>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-8 pr-2">
+          <!-- Description -->
+          <div class="bg-white/5 p-4 rounded-lg">
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Incident Report</h3>
+            <p id="cdDesc" class="text-gray-300 whitespace-pre-wrap">Loading...</p>
           </div>
 
-          <!-- Save button removed as it only saved to local storage incorrectly -->
-          <!-- Re-enabling for visual completeness even if backend logic is stubbed in this context -->
-          <button onclick="saveOfficerProfile()"
-            class="bg-gradient-to-r from-green-600 to-emerald-700 text-white p-3 rounded-lg w-full font-bold hover:shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all duration-300 mt-4">
-            Save Profile
+          <!-- Evidence Section -->
+          <div>
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-bold text-blue-400">Evidence Locker</h3>
+              <label for="evidenceUpload"
+                class="cursor-pointer bg-blue-600/20 text-blue-400 border border-blue-600 px-4 py-2 rounded hover:bg-blue-600 hover:text-white transition flex items-center gap-2">
+                <span>⬆</span> Upload Evidence
+              </label>
+              <input type="file" id="evidenceUpload" class="hidden" onchange="handleEvidenceSelection(this)">
+            </div>
+
+            <!-- Upload Preview (Hidden by default) -->
+            <div id="uploadPreview" class="hidden glass p-4 rounded-lg mb-4 border border-blue-500/30">
+              <h4 class="font-bold text-white mb-2">New Upload</h4>
+              <div class="flex gap-4 items-end">
+                <div class="flex-1">
+                  <span id="fileName" class="text-sm text-gray-400 block mb-2">filename.jpg</span>
+                  <input id="evidenceTags" type="text" placeholder="Tags (e.g. weapon, vehicle, suspect)"
+                    class="w-full glass p-2 rounded text-white border-white/10 focus:border-blue-500 outline-none text-sm">
+                </div>
+                <button onclick="uploadEvidence()"
+                  class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold shadow-lg">Confirm
+                  Upload</button>
+                <button onclick="cancelUpload()" class="text-red-400 hover:text-white px-3 py-2">Cancel</button>
+              </div>
+            </div>
+
+            <!-- Evidence List -->
+            <div class="glass rounded-xl overflow-hidden border border-white/5">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-white/5 text-gray-400 uppercase text-xs">
+                  <tr>
+                    <th class="p-3">File</th>
+                    <th class="p-3">Type</th>
+                    <th class="p-3">Tags</th>
+                    <th class="p-3">Status</th>
+                    <th class="p-3">Uploaded</th>
+                    <th class="p-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="evidenceListBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+              <p id="noEvidenceMsg" class="p-4 text-center text-gray-500 italic hidden">No evidence collected yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <section id="settings" class="section hidden">
+        <h2 class="text-xl font-bold mb-4">Settings</h2>
+        <div class="glass p-6 rounded-xl max-w-lg">
+          <label class="block mb-4">
+            Alert Volume
+            <input type="range" class="w-full mt-2 accent-green-500">
+          </label>
+          <button
+            class="bg-[#13ec5b] text-black px-6 py-2 rounded hover:bg-green-400 font-bold shadow-lg shadow-green-500/20">
+            Save Settings
           </button>
+        </div>
+      </section>
+
+
+
+      <!-- PROFILE -->
+      <section id="profile" class="section hidden flex justify-center">
+        <div class="glass p-8 rounded-2xl max-w-lg w-full relative overflow-hidden">
+          <!-- Decoration -->
+          <div class="absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none">
+          </div>
+
+          <h2 class="text-xl font-bold mb-6 text-center">Officer Profile</h2>
+
+          <!-- Profile Picture -->
+          <div class="flex flex-col items-center gap-4 mb-6">
+            <div class="relative group">
+              <img id="officerPicPreview" src="https://via.placeholder.com/120"
+                class="w-28 h-28 rounded-full object-cover border-4 border-white/5 group-hover:border-green-400 transition-all duration-300 shadow-xl">
+              <div
+                class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none">
+                <span class="text-xs font-bold text-white">Change</span>
+              </div>
+            </div>
+            <input type="file" accept="image/*" onchange="updateOfficerPic(event)"
+              class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-500/10 file:text-green-400 hover:file:bg-green-500/20">
+          </div>
+
+          <!-- Profile Fields -->
+          <div class="space-y-4">
+            <div>
+              <label class="text-sm text-gray-400 ml-1">Username (Email)</label>
+              <input id="officerUsername" class="w-full glass p-3 rounded-lg text-white"
+                value="{{ session.user.email }}" readonly>
+            </div>
+
+            <div>
+              <label class="text-sm text-gray-400 ml-1">Full Name</label>
+              <input id="officerProfileName" class="w-full glass p-3 rounded-lg text-white"
+                value="{{ session.user.name }}" readonly>
+            </div>
+
+            <div>
+              <label class="text-sm text-gray-400 ml-1">Role</label>
+              <input class="w-full glass p-3 rounded-lg text-gray-400" value="{{ session.user.role|capitalize }}"
+                disabled>
+            </div>
+
+            <!-- Save button removed as it only saved to local storage incorrectly -->
+            <!-- Re-enabling for visual completeness even if backend logic is stubbed in this context -->
+            <button onclick="saveOfficerProfile()"
+              class="bg-gradient-to-r from-green-600 to-emerald-700 text-white p-3 rounded-lg w-full font-bold hover:shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all duration-300 mt-4">
+              Save Profile
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SOS MODAL -->
+      <div id="sosModal"
+        class="fixed inset-0 bg-red-900/40 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+        <div
+          class="glass p-8 rounded-2xl max-w-md w-full border border-red-500 shadow-[0_0_50px_rgba(220,38,38,0.5)] text-center space-y-6 relative overflow-hidden">
+          <!-- Animated Background -->
+          <div class="absolute inset-0 bg-red-600/10 animate-pulse pointer-events-none"></div>
+
+          <div class="relative z-10">
+            <div
+              class="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_#ef4444]">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" viewBox="0 0 20 20"
+                fill="currentColor">
+                <path fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd" />
+              </svg>
+            </div>
+
+            <h2 class="text-3xl font-bold text-white mb-2">EMERGENCY SOS</h2>
+            <p class="text-red-200 text-sm mb-6">This will alert Admin and broadcast your live location to all nearby
+              units.</p>
+
+            <div class="grid grid-cols-1 gap-3">
+              <button onclick="triggerSOS('medical')"
+                class="bg-red-600 hover:bg-red-500 text-white p-4 rounded-xl font-bold transition transform hover:scale-105 shadow-lg border border-red-400">
+                🚑 MEDICAL EMERGENCY
+              </button>
+              <button onclick="triggerSOS('backup')"
+                class="bg-orange-600 hover:bg-orange-500 text-white p-4 rounded-xl font-bold transition transform hover:scale-105 shadow-lg border border-orange-400">
+                👮 REQUEST BACKUP
+              </button>
+              <button onclick="triggerSOS('fire')"
+                class="bg-yellow-600 hover:bg-yellow-500 text-white p-4 rounded-xl font-bold transition transform hover:scale-105 shadow-lg border border-yellow-400">
+                🔥 FIRE / HAZARD
+              </button>
+            </div>
+
+            <button onclick="closeSOSModal()"
+              class="mt-6 text-gray-400 hover:text-white underline text-sm">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI FEEDBACK MODAL -->
+      <div id="aiFeedbackModal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+        <div class="glass p-6 rounded-2xl max-w-sm w-full border border-purple-500/30 relative">
+          <h3 class="text-lg font-bold text-purple-400 mb-4">Review AI Detection</h3>
+          <p class="text-sm text-gray-300 mb-4">Was the AI analysis for this file correct?</p>
+
+          <input type="hidden" id="feedbackEvidenceId">
+
+          <div class="space-y-3">
+            <button onclick="submitFeedback('Correct')"
+              class="w-full bg-green-900/40 text-green-400 border border-green-500/30 p-2 rounded hover:bg-green-900/60">
+              ✔ Correct Detection
+            </button>
+            <button onclick="submitFeedback('False Positive')"
+              class="w-full bg-red-900/40 text-red-400 border border-red-500/30 p-2 rounded hover:bg-red-900/60">
+              ✖ False Positive
+            </button>
+            <button onclick="submitFeedback('Missed Object')"
+              class="w-full bg-yellow-900/40 text-yellow-400 border border-yellow-500/30 p-2 rounded hover:bg-yellow-900/60">
+              ⚠ Missed Object
+            </button>
+          </div>
+
+          <textarea id="feedbackComment" placeholder="Optional comments..."
+            class="w-full glass mt-4 p-2 rounded text-sm text-white focus:outline-none border-white/10"></textarea>
+
+          <button onclick="closeFeedbackModal()"
+            class="mt-4 text-gray-500 text-xs w-full hover:text-white">Cancel</button>
+        </div>
+      </div>
+      <div
+        class="glass p-8 rounded-2xl max-w-md w-full border border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)] relative">
+        <h2 class="text-2xl font-bold text-white mb-4">File Incident Report</h2>
+
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm text-gray-400">Suspect Name / Description</label>
+            <input id="challanName" type="text" placeholder="e.g. Male in Red Shirt"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none">
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400">Incident Type</label>
+            <select id="challanReason"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none bg-black">
+              <option value="Suspicious Activity">Suspicious Activity</option>
+              <option value="Public Disturbance">Public Disturbance/Panic</option>
+              <option value="Unauthorised Objects">Unauthorised Objects (Weapons/Bags)</option>
+              <option value="Trespassing">Trespassing</option>
+              <option value="Loitering">Loitering</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400">Evidence (Photo)</label>
+            <input id="challanEvidence" type="file" accept="image/*"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none text-sm">
+          </div>
+
+          <!-- HIDDEN AMOUNT FIELD (Not relevant for security report) -->
+          <div class="hidden">
+            <label class="text-sm text-gray-400">Fine Amount (₹)</label>
+            <input id="challanAmount" type="number"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none" value="0">
+          </div>
+
+          <div id="challanResult" class="hidden p-3 bg-green-500/20 text-green-400 rounded text-sm break-all"></div>
+
+          <div class="flex gap-3 mt-6">
+            <button onclick="closeChallanModal()"
+              class="flex-1 py-2 rounded border border-gray-600 hover:bg-gray-800 text-gray-400">Cancel</button>
+            <button onclick="issueChallan()"
+              class="flex-1 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/30">
+              Submit Report</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENDING AI REVIEWS -->
+    <section id="ai_reviews" class="section hidden">
+      <h2 class="section-title">Pending AI Reviews</h2>
+      <div class="glass p-6 rounded-xl">
+        <h3 class="panel-title mb-4 text-orange-400">Automated Violation Alerts</h3>
+        <p class="text-sm text-gray-400 mb-6">Review detections flagged by the AI system. Confirm violations to issue
+          fines or dismiss false positives.</p>
+
+        <div id="reviewContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Populated by JS -->
+          <p class="text-gray-500 italic">No pending reviews.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACTIVITY LOG -->
+    <section id="activity_log" class="section hidden">
+      <h2 class="text-xl font-bold mb-4">Activity Log</h2>
+      <div class="glass p-6 rounded-xl border border-white/5">
+        <h3 class="panel-title mb-4 font-bold text-blue-400">Officer Actions History</h3>
+
+        <div id="activityLogContainer" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+          <p class="text-gray-500 italic text-center py-4">Loading operational logs...</p>
+          <!-- JS will populate -->
         </div>
       </div>
     </section>
@@ -677,25 +1129,9 @@
 
     /* ---------- SEARCH & FILTER ---------- */
     console.log("Dashboard Script Loaded");
-    function filterRecords() {
-      const query = document.getElementById('recordSearch').value.toLowerCase();
-      const statusFilter = document.getElementById('recordFilter').value.toLowerCase();
-      const rows = document.querySelectorAll('.record-row');
+    /* ---------- SEARCH & FILTER ---------- */
+    // filterRecords defined below in extended block
 
-      rows.forEach(row => {
-        const content = row.getAttribute('data-content').toLowerCase();
-        const status = row.getAttribute('data-status').toLowerCase();
-
-        const matchesSearch = content.includes(query);
-        const matchesStatus = (statusFilter === 'all') || (status === statusFilter);
-
-        if (matchesSearch && matchesStatus) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
 
     /* ---------- UPDATE STATUS ---------- */
     async function updateStatus(id, newStatus) {
@@ -719,16 +1155,74 @@
           // Update data attribute for filter
           const row = statusBadge.closest('tr');
           if (row) row.setAttribute('data-status', newStatus);
-
-          // Recalculate pending count (simple reload for now or sophisticated DOM update)
-          // For simplicity, just alert
-          // alert("Status updated!");
         } else {
           alert("Failed to update status: " + data.error);
         }
       } catch (e) {
         console.error(e);
-        alert("Error updating status");
+        alert("Server error");
+      }
+    }
+
+    /* ---------- CHALLAN LOGIC ---------- */
+    function openChallanModal() {
+      document.getElementById("challanModal").classList.remove("hidden");
+    }
+
+    function closeChallanModal() {
+      document.getElementById("challanModal").classList.add("hidden");
+      document.getElementById("challanResult").classList.add("hidden");
+      document.getElementById("challanName").value = "";
+    }
+
+    async function issueChallan() {
+      const name = document.getElementById("challanName").value;
+      const reason = document.getElementById("challanReason").value;
+      const amount = document.getElementById("challanAmount").value;
+      const fileInput = document.getElementById("challanEvidence");
+
+      if (!amount || !reason) return alert("Please fill details");
+
+      const formData = new FormData();
+      formData.append("violator_name", name);
+      formData.append("reason", reason);
+      formData.append("amount", amount);
+      if (fileInput.files[0]) {
+        formData.append("evidence", fileInput.files[0]);
+      }
+
+      try {
+        const res = await fetch('/api/issue_challan', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const resDiv = document.getElementById("challanResult");
+          resDiv.innerHTML = `Fine Issued! <br> <a href="${data.payment_link}" target="_blank" class="underline font-bold">Payment Link</a>`;
+          resDiv.classList.remove("hidden");
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) {
+        alert("Server Error");
+      }
+    }
+
+    /* ---------- SHARE ALERT ---------- */
+    function shareAlert(message, source) {
+      const text = `ALERT REPORT\nSource: ${source}\nMessage: ${message}\n- NETRA System`;
+      const encodedText = encodeURIComponent(text);
+
+      // Simple selection dialog logic (using browser native for simplicity or creating a modal)
+      // For quick implementation:
+      const choice = prompt("Share via (type number):\n1. WhatsApp\n2. Email", "1");
+
+      if (choice === '1') {
+        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+      } else if (choice === '2') {
+        window.location.href = `mailto:?subject=NETRA%20Alert&body=${encodedText}`;
       }
     }
 
@@ -798,46 +1292,83 @@
 
     /* ---------- POLLING & NOTIFICATIONS ---------- */
     let lastMsgId = 0;
-    let lastAlertId = 0;
-    let serverMaxMsgId = 0;
 
     async function pollState() {
       try {
+        // 1. Sync State (Messages)
         const res = await fetch('/api/sync_state');
-        if (!res.ok) return;
-        const data = await res.json();
-
-        serverMaxMsgId = data.latest_msg_id;
-
-        // On first run, valid IDs -> set baseline
-        if (lastMsgId === 0) {
-          lastMsgId = data.latest_msg_id;
-          // Also set alert baseline if we track it?
-          // Officer dashboard mainly uses messages for notifications in this snippet for now
-          // but let's be robust
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          if (lastMsgId === 0) lastMsgId = data.latest_msg_id;
+          // Message logic handled typically by chat reload, here we just track ID
         }
 
-        const dot = document.getElementById('notificationDot');
-        // Check for updates
-        if (dot && data.latest_msg_id > lastMsgId) {
-          dot.classList.remove('hidden');
-        }
+        // 2. Fetch Notifications
+        fetchNotifications();
+
       } catch (e) { console.error("Poll error", e); }
     }
 
+    async function fetchNotifications() {
+      try {
+        const res = await fetch('/api/get_notifications');
+        const notifs = await res.json();
+
+        const list = document.getElementById('notificationList');
+        const dot = document.getElementById('notificationDot');
+
+        if (notifs.length === 0) {
+          list.innerHTML = '<p class="text-center text-gray-500 text-xs py-4">No notifications.</p>';
+          dot.classList.add('hidden');
+          return;
+        }
+
+        let hasUnread = false;
+        let html = '';
+
+        notifs.forEach(n => {
+          if (!n.is_read) hasUnread = true;
+          const bg = n.is_read ? 'opacity-50' : 'bg-white/5';
+          html += `
+                  <div class="p-2 border-b border-white/5 last:border-0 ${bg} hover:bg-white/10 transition cursor-pointer" onclick="markRead(${n.id})">
+                    <p class="text-sm text-gray-200">${n.message}</p>
+                    <p class="text-[10px] text-gray-500 mt-1">${n.created_at}</p>
+                  </div>
+                `;
+        });
+
+        list.innerHTML = html;
+
+        if (hasUnread) dot.classList.remove('hidden');
+        else dot.classList.add('hidden');
+
+      } catch (e) { console.error(e); }
+    }
+
+    async function markRead(id) {
+      try {
+        await fetch('/api/mark_notification_read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id })
+        });
+        fetchNotifications(); // Refresh
+      } catch (e) { }
+    }
+
+    async function markAllRead() {
+      // ideally batch mark, for now just poll
+      // Implement batch endpoint if needed, or iterate
+    }
+
     function markSeen() {
-      const dot = document.getElementById('notificationDot');
-      if (dot) dot.classList.add('hidden');
-      if (serverMaxMsgId > 0) lastMsgId = serverMaxMsgId;
+      // logic integrated in fetchNotifications
     }
 
     setInterval(pollState, 5000);
     pollState();
 
     /* ---------- LEAFLET MAP ---------- */
-    // Initialize map when section is shown or on load (but ideally when shown to handle resizing)
-    // We'll init global variable and resize on show
     /* ---------- LEAFLET MAP ---------- */
     // Initialize map when section is shown or on load (but ideally when shown to handle resizing)
     let mapInstance = null;
@@ -931,8 +1462,545 @@
         }, 100);
       }
     }
-  </script>
 
+    // Original script end point - merging with extended functions
+
+
+
+    /* --- SOS SYSTEM --- */
+    function openSOSModal() {
+      document.getElementById('sosModal').classList.remove('hidden');
+    }
+
+    function closeSOSModal() {
+      document.getElementById('sosModal').classList.add('hidden');
+    }
+
+    /* ---------- CREATE CASE ---------- */
+    function openCreateCaseModal() {
+      document.getElementById('createCaseModal').classList.remove('hidden');
+    }
+
+    function closeCreateCaseModal() {
+      document.getElementById('createCaseModal').classList.add('hidden');
+    }
+
+    async function createCase() {
+      const title = document.getElementById('caseTitle').value;
+      const desc = document.getElementById('caseDesc').value;
+
+      if (!title) return alert("Title is required");
+
+      try {
+        const res = await fetch('/api/create_case', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: title, description: desc })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert("Case created successfully!");
+          window.location.reload();
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server error");
+      }
+    }
+
+    /* ---------- CASE DETAILS & EVIDENCE ---------- */
+    let currentCaseDbId = null; // Store for upload
+
+    async function openCaseDetails(caseId) { // caseId here is case_id string (e.g. NETRA-202X...)
+      const modal = document.getElementById('caseDetailsModal');
+      modal.classList.remove('hidden');
+
+      // Reset UI
+      document.getElementById('cdTitle').innerText = "Loading...";
+      document.getElementById('cdDesc').innerText = "...";
+      document.getElementById('evidenceListBody').innerHTML = "";
+      document.getElementById('noEvidenceMsg').classList.remove('hidden');
+      cancelUpload();
+
+      try {
+        const res = await fetch(`/api/get_case_details/${caseId}`);
+        const data = await res.json();
+
+        if (data.success) {
+          const c = data.case;
+          currentCaseDbId = c.id; // Store int ID for uploads
+
+          document.getElementById('cdTitle').innerText = `${c.case_id}: ${c.title}`;
+          document.getElementById('cdStatus').innerText = `Status: ${c.status} | Officer: ${c.officer_name}`;
+          document.getElementById('cdDesc').innerText = c.description || "No description.";
+
+          // Populate Evidence
+          const tbody = document.getElementById('evidenceListBody');
+          tbody.innerHTML = "";
+
+          if (data.evidence && data.evidence.length > 0) {
+            document.getElementById('noEvidenceMsg').classList.add('hidden');
+            data.evidence.forEach(e => {
+              const row = document.createElement('tr');
+              row.className = "border-b border-white/5 hover:bg-white/5";
+
+              // Determine preview link
+              // Path in DB is like static/evidence/...
+              // Clean up path if needed
+              let webPath = e.file_path; // Assuming path stored is relative relative to root or static? 
+              // In upload_evidence we stored: static/evidence/...
+              // Flask static url needs: /static/evidence/...
+              // Ideally use url_for but in JS we construct it.
+
+              const rowHtml = `
+                <td class="p-3 text-blue-300 truncate max-w-xs" title="${webPath}">${webPath.split('/').pop()}</td>
+                <td class="p-3 uppercase text-xs text-gray-400">${e.file_type}</td>
+                <td class="p-3">${e.tags || '-'}</td>
+                <td class="p-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] border 
+                    ${e.status === 'Verified' ? 'border-green-500/30 text-green-400' : 'border-yellow-500/30 text-yellow-400'}">
+                    ${e.status}
+                  </span>
+                </td>
+                <td class="p-3 text-gray-500 text-xs">${e.created_at}</td>
+                <td class="p-3 flex gap-2">
+                  <a href="/${webPath}" target="_blank" class="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded">View</a>
+                  <button onclick="openFeedbackModal(${e.id})" class="text-[10px] text-purple-400 border border-purple-500/30 px-2 py-1 rounded hover:bg-purple-500/10">Rate AI</button>
+                </td>
+              `;
+              row.innerHTML = rowHtml;
+              tbody.appendChild(row);
+            });
+          }
+        } else {
+          alert("Failed to load case details.");
+          closeCaseDetailsModal();
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Error loading details");
+      }
+    }
+
+    function closeCaseDetailsModal() {
+      document.getElementById('caseDetailsModal').classList.add('hidden');
+    }
+
+
+
+    function closeCaseDetailsModal() {
+      document.getElementById('caseDetailsModal').classList.add('hidden');
+    }
+
+    /* --- UPLOAD LOGIC --- */
+    function handleEvidenceSelection(input) {
+      if (input.files && input.files[0]) {
+        document.getElementById('uploadPreview').classList.remove('hidden');
+        document.getElementById('fileName').innerText = input.files[0].name;
+      }
+    }
+
+    function cancelUpload() {
+      document.getElementById('evidenceUpload').value = "";
+      document.getElementById('evidenceTags').value = "";
+      document.getElementById('uploadPreview').classList.add('hidden');
+    }
+
+    async function uploadEvidence() {
+      const fileInput = document.getElementById('evidenceUpload');
+      const tags = document.getElementById('evidenceTags').value;
+
+      if (!fileInput.files[0]) return;
+      if (!currentCaseDbId) return alert("Case ID missing error.");
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      formData.append("case_db_id", currentCaseDbId);
+      formData.append("tags", tags);
+
+      const btn = event.target;
+      const originalText = btn.innerText;
+      btn.innerText = "Uploading...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/upload_evidence', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert("Evidence uploaded successfully!");
+          closeCaseDetailsModal();
+        } else {
+          alert("Upload failed: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server error during upload");
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    /* --- AI FEEDBACK --- */
+    function openFeedbackModal(evidenceId) {
+      document.getElementById('aiFeedbackModal').classList.remove('hidden');
+      document.getElementById('feedbackEvidenceId').value = evidenceId;
+      document.getElementById('feedbackComment').value = "";
+    }
+
+    function closeFeedbackModal() {
+      document.getElementById('aiFeedbackModal').classList.add('hidden');
+    }
+
+    async function submitFeedback(type) {
+      const evidenceId = document.getElementById('feedbackEvidenceId').value;
+      const comment = document.getElementById('feedbackComment').value;
+
+      try {
+        const res = await fetch('/api/submit_ai_feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            evidence_id: evidenceId,
+            feedback: type,
+            comments: comment
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Feedback recorded. Thank you for improving NETRA AI.");
+          closeFeedbackModal();
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+
+    function cancelUpload() {
+      document.getElementById('evidenceUpload').value = "";
+      document.getElementById('evidenceTags').value = "";
+      document.getElementById('uploadPreview').classList.add('hidden');
+    }
+
+    async function uploadEvidence() {
+      const fileInput = document.getElementById('evidenceUpload');
+      const tags = document.getElementById('evidenceTags').value;
+
+      if (!fileInput.files[0]) return;
+      if (!currentCaseDbId) return alert("Case ID missing error.");
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      formData.append("case_db_id", currentCaseDbId);
+      formData.append("tags", tags);
+
+      const btn = event.target;
+      const originalText = btn.innerText;
+      btn.innerText = "Uploading...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/upload_evidence', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          // Refresh details
+          // We need the string case ID to re-call openCaseDetails or just reload. 
+          // Since openCaseDetails uses string ID and we only have int ID here easily 
+          // (Wait, we do have string ID in the title but easier to just reload page or fetch specific evidence row).
+          // Simplest: Close and Alert
+          alert("Evidence uploaded successfully!");
+          closeCaseDetailsModal();
+          // Or ideally: Reload the modal content.
+        } else {
+          alert("Upload failed: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server error during upload");
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    function triggerSOS(type) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const { latitude, longitude } = position.coords;
+          sendSOSAlert(type, latitude, longitude);
+        }, error => {
+          console.error("Geo Error:", error);
+          // Send without location if blocked/error
+          sendSOSAlert(type, null, null);
+          alert("Location access denied. Sending alert without coordinates.");
+        });
+      } else {
+        sendSOSAlert(type, null, null);
+        alert("Geolocation not supported. Sending alert without coordinates.");
+      }
+      closeSOSModal();
+    }
+
+    async function sendSOSAlert(type, lat, lng) {
+      try {
+        await fetch('/api/sos_alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, lat, lng })
+        });
+        alert("🚨 SOS SIGNAL SENT! Help is on the way.");
+        loadActivityLogs(); // Log this action
+      } catch (e) {
+        console.error(e);
+        alert("Failed to send SOS! Please try again or call manually.");
+      }
+    }
+
+    /* --- QUICK ACTIONS --- */
+    async function triggerAction(type) {
+      if (!confirm(`Are you sure you want to trigger: ${type.toUpperCase()}?`)) return;
+
+      try {
+        const res = await fetch('/api/quick_action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: type })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          // Custom "Toast" or just a better alert for now
+          // Using a mock-toast by reusing an element or simple alert
+          alert(`✅ ACTION CONFIRMED\n\n${data.message}\n\nAlert sent to all field officers.`);
+          loadActivityLogs();
+        } else {
+          alert("Action Failed: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server Error");
+      }
+    }
+
+    /* --- ACTIVITY LOGS --- */
+    async function loadActivityLogs() {
+      const container = document.getElementById('activityLogContainer');
+      container.innerHTML = '<p class="text-gray-500 italic text-center py-4">Loading operational logs...</p>';
+
+      try {
+        const res = await fetch('/api/officer_activity');
+        const logs = await res.json();
+
+        if (logs.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 italic text-center py-4">No recent activity recorded.</p>';
+          return;
+        }
+
+        let html = '';
+        logs.forEach(log => {
+          const icon = log.type === 'alert' ? '🛑' : (log.type === 'message' ? '💬' : '📝');
+          html += `
+  <div class="glass p-3 rounded flex items-start gap-3 hover:bg-white/5 transition">
+    <div class="text-xl mt-1">${icon}</div>
+    <div>
+      <p class="text-gray-200 text-sm font-semibold">${log.action}</p>
+      <p class="text-xs text-gray-500 font-mono mt-1">${log.timestamp}</p>
+      ${log.details ? `<p class="text-xs text-gray-400 mt-1 italic">${log.details}</p>` : ''}
+    </div>
+  </div>
+  `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        console.error(e);
+        container.innerHTML = '<p class="text-red-400 italic text-center py-4">Error loading logs.</p>';
+      }
+    }
+
+    /* --- CROWD DENSITY --- */
+    async function pollCrowdDensity() {
+      const container = document.getElementById('crowdContainer');
+      if (!container) return;
+
+      try {
+        const res = await fetch('/api/crowd_status');
+        const data = await res.json();
+
+        if (!data || data.length === 0) return;
+
+        container.innerHTML = data.map(sec => {
+          let color = 'bg-green-500';
+          let textColor = 'text-green-400';
+
+          if (sec.density > 85) { color = 'bg-red-600'; textColor = 'text-red-500'; }
+          else if (sec.density > 70) { color = 'bg-orange-500'; textColor = 'text-orange-400'; }
+          else if (sec.density > 40) { color = 'bg-yellow-500'; textColor = 'text-yellow-400'; }
+
+          return `
+                  <div class="glass p-4 rounded border border-white/5 relative overflow-hidden group">
+                     <div class="flex justify-between items-end mb-2 relative z-10">
+                        <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">${sec.name}</span>
+                        <span class="text-xl font-bold ${textColor}">${sec.percent}%</span>
+                     </div>
+                     <div class="text-3xl font-bold text-white mb-1 relative z-10">${sec.density}%</div>
+                     <p class="text-xs ${textColor} font-mono relative z-10">${sec.status}</p>
+                     
+                     <!-- Bar BG -->
+                     <div class="absolute bottom-0 left-0 h-1 ${color} transition-all duration-1000" style="width: ${sec.density}%"></div>
+                     <div class="absolute inset-0 ${color} opacity-5 group-hover:opacity-10 transition duration-500"></div>
+                  </div>
+                `;
+        }).join('');
+
+      } catch (e) { console.error("Crowd Poll Error", e); }
+    }
+
+    // Poll every 3 seconds for crowd updates
+    setInterval(pollCrowdDensity, 3000);
+    pollCrowdDensity();
+
+    /* --- SEARCH & FILTER --- */
+    function filterRecords() {
+      const query = document.getElementById('recordSearch').value.toLowerCase();
+      const statusFilter = document.getElementById('recordFilter').value;
+      const rows = document.querySelectorAll('.record-row');
+
+      rows.forEach(row => {
+        const content = row.getAttribute('data-content').toLowerCase();
+        const status = row.getAttribute('data-status');
+
+        const matchesSearch = content.includes(query);
+        const matchesStatus = (statusFilter === 'all') ||
+          (statusFilter === 'resolved' && status === 'Resolved') ||
+          (statusFilter === 'unresolved' && status !== 'Resolved');
+
+        if (matchesSearch && matchesStatus) {
+          row.classList.remove('hidden');
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+    }
+
+    /* ---------- AI REVIEWS ---------- */
+    async function loadReviews() {
+      const container = document.getElementById('reviewContainer');
+      container.innerHTML = '<p class="text-gray-500 italic">Loading...</p>';
+
+      try {
+        const res = await fetch('/api/get_pending_reviews');
+        const reviews = await res.json();
+
+        if (reviews.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 italic">No pending reviews.</p>';
+          return;
+        }
+
+        container.innerHTML = reviews.map(r => `
+                <div class="bg-black/40 border border-orange-500/30 rounded-xl overflow-hidden shadow-lg">
+                    <div class="relative h-48">
+                        <img src="/${r.file_path}" class="w-full h-full object-cover opacity-80" alt="Evidence">
+                        <div class="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-orange-400 font-mono border border-orange-500/50">
+                            ${Math.round(r.confidence_score * 100)}% Conf.
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold text-white mb-1">${r.tags}</h4>
+                        <p class="text-xs text-gray-400 mb-2">Zone: <span class="text-gray-200">${r.zone_name || 'N/A'}</span></p>
+                        <p class="text-xs text-gray-500 font-mono mb-4">${r.created_at}</p>
+                        
+                        <div class="flex gap-2">
+                             <button onclick="confirmViolation(${r.id})" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded text-xs font-bold transition">
+                                Confirm & Fine
+                             </button>
+                             <button onclick="dismissViolation(${r.id})" class="flex-1 bg-white/10 hover:bg-white/20 text-gray-300 py-2 rounded text-xs transition">
+                                Dismiss
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+      } catch (e) { console.error(e); }
+    }
+
+    async function confirmViolation(id) {
+      if (!confirm("Confirm this violation?")) return;
+
+      try {
+        const res = await fetch('/api/confirm_violation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, remarks: "Confirmed by Officer via Dashboard" })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Violation Confirmed! Opening Challan Form...");
+          loadReviews();
+
+          openChallanModal();
+          document.getElementById('challanName').value = "Unknown (Auto-Detect)";
+          document.getElementById('challanReason').value = "Trespassing";
+          // In a real app, we'd pass the evidence ID to the challan submission
+          document.getElementById('challanResult').innerText = `Linked Evidence ID: ${id}`;
+          document.getElementById('challanResult').classList.remove('hidden');
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) { alert("Server Error"); }
+    }
+
+    async function dismissViolation(id) {
+      if (!confirm("Dismiss as false positive?")) return;
+      try {
+        await fetch('/api/dismiss_violation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        loadReviews();
+      } catch (e) { }
+    }
+
+    /* --- NAVIGATION --- */
+    function navigateToAlert(message) {
+      // Regex to find "Location lat, lng" pattern
+      // Matches "Location 28.123, 77.456" or similar
+      const coordRegex = /Location\s*([\d\.]+),\s*([\d\.]+)/i;
+      const match = message.match(coordRegex);
+
+      if (match) {
+        const lat = match[1];
+        const lng = match[2];
+        const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+        window.open(url, '_blank');
+      } else {
+        // Fallback: If no coords found, search the message text or just open maps
+        // Searching message text might yield results if it contains a place name
+        const encodedMsg = encodeURIComponent(message);
+        const url = `https://www.google.com/maps/search/?api=1&query=${encodedMsg}`;
+
+        if (confirm(`No precise coordinates found in alert. Search Google Maps for "${message}"?`)) {
+          window.open(url, '_blank');
+        }
+      }
+    }
+
+  </script>
 
   <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
 </body>

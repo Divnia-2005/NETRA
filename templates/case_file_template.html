@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Helvetica', sans-serif;
+            padding: 40px;
+            color: #111;
+            line-height: 1.6;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 3px solid #000;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1a2e22;
+        }
+
+        .meta {
+            text-align: right;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #b91c1c;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+
+        .label {
+            font-weight: bold;
+            width: 150px;
+            display: inline-block;
+            color: #374151;
+        }
+
+        .val {
+            font-weight: normal;
+            color: #000;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+            background: #000;
+        }
+
+        .status-Resolved {
+            background: #059669;
+        }
+
+        .status-Pending {
+            background: #dc2626;
+        }
+
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            font-size: 10px;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="logo">NETRA SECURITY</div>
+        <div class="meta">
+            CASE FILE #{{ alert.id }}<br>
+            GENERATED: {{ now }}
+        </div>
+    </div>
+
+    <div class="title">INCIDENT REPORT: {{ alert.id }}</div>
+
+    <div class="section">
+        <div class="row"><span class="label">DATE OF INCIDENT:</span> <span class="val">{{ alert.timestamp }}</span>
+        </div>
+        <div class="row"><span class="label">LOCATION:</span> <span class="val">{{ alert.location }}</span></div>
+        <div class="row"><span class="label">SEVERITY:</span> <span class="val">{{ alert.severity }}</span></div>
+        <div class="row"><span class="label">TYPE:</span> <span class="val">{{ alert.alert_type }}</span></div>
+        <div class="row"><span class="label">STATUS:</span> <span class="status-badge status-{{ alert.status }}">{{
+                alert.status }}</span></div>
+    </div>
+
+    <div class="section">
+        <h3 style="border-bottom: 1px solid #ddd;">DESCRIPTION</h3>
+        <p>{{ alert.description }}</p>
+    </div>
+
+    {% if alert.snapshot_path %}
+    <div class="section">
+        <h3 style="border-bottom: 1px solid #ddd;">VISUAL EVIDENCE</h3>
+        <!-- Note: xhtml2pdf handles external images differently, local path needed -->
+        <br>
+        <img src="{{ alert.local_path }}" style="width: 100%; border: 1px solid #ccc;">
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <h3 style="border-bottom: 1px solid #ddd;">OFFICER NOTES</h3>
+        <p>Assigned Officer: {{ alert.officer_name or 'UNASSIGNED' }}</p>
+        <p>This report acts as an official record of the incident detected by the NETRA Surveillance Network.</p>
+    </div>
+
+    <div class="footer">
+        CONFIDENTIAL - INTERNAL USE ONLY<br>
+        NETRA SURVEILLANCE SYSTEMS
+    </div>
+</body>
+
+</html>

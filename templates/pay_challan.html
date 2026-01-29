@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pay Fine — NETRA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #020402;
+            color: #e5ffe9;
+        }
+
+        .glass {
+            background: rgba(26, 46, 34, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(31, 77, 54, 0.5);
+        }
+
+        .btn-pay {
+            background: #13ec5b;
+            color: #000;
+            transition: all 0.3s;
+        }
+
+        .btn-pay:hover {
+            background: #10b948;
+            box-shadow: 0 0 20px rgba(19, 236, 91, 0.4);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Header / Logo -->
+    <div class="mb-8 flex items-center gap-3">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" class="text-[#13ec5b]">
+            <path d="M12 5C6.5 5 2 12 2 12s4.5 7 10 7 10-7 10-7-4.5-7-10-7Z" stroke="currentColor" stroke-width="2"
+                fill="currentColor" fill-opacity="0.15" />
+            <circle cx="12" cy="12" r="3" fill="currentColor" />
+        </svg>
+        <h1 class="text-3xl font-bold tracking-wide">NETRA <span class="text-gray-400 text-lg font-normal">Security
+                Fine</span></h1>
+    </div>
+
+    <div class="glass p-8 rounded-2xl max-w-md w-full shadow-2xl relative overflow-hidden">
+        <!-- Decoration -->
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-green-500/10 rounded-full blur-3xl pointer-events-none">
+        </div>
+
+        {% if already_paid %}
+        <div class="text-center py-10">
+            <div
+                class="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-green-400 mb-2">Paid Successfully</h2>
+            <p class="text-gray-400">This fine has been settled.</p>
+
+            <div class="mt-6 border-t border-white/10 pt-4 text-left text-sm text-gray-400">
+                <p>Transaction ID: <span class="text-white font-mono">{{ challan.payment_id }}</span></p>
+                <p>Date: <span class="text-white">{{ challan.paid_at }}</span></p>
+
+                <a href="/download_receipt/{{ challan.id }}"
+                    class="mt-4 block w-full text-center py-2 rounded bg-white text-black font-bold hover:bg-gray-200 transition">
+                    Download Receipt (PDF)
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <!-- Violation Details -->
+        <div class="mb-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                <span class="text-gray-400">Reference ID</span>
+                <span class="font-mono text-[#13ec5b]">#{{ challan.id }}</span>
+            </div>
+
+            <div>
+                <span class="text-gray-400 text-sm block mb-1">Status</span>
+                <span
+                    class="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded text-xs uppercase font-bold tracking-wider">Unresolved</span>
+            </div>
+
+            <div>
+                <span class="text-gray-400 text-sm block mb-1">Violation Type</span>
+                <span class="font-semibold text-lg text-red-100">
+                    {{ challan.reason }}
+                </span>
+                <p class="text-xs text-gray-500 mt-1">Detected in restricted zone</p>
+            </div>
+
+            <div>
+                <span class="text-gray-400 text-sm block mb-1">Violator</span>
+                <span class="font-mono text-gray-200">{{ challan.violator_name or 'Unknown Person' }}</span>
+            </div>
+
+            {% if challan.evidence_path %}
+            <div>
+                <span class="text-gray-400 text-sm block mb-1">Violation Evidence</span>
+                <div class="relative group">
+                    <img src="{{ url_for('static', filename=challan.evidence_path.replace('static/', '')) }}"
+                        class="w-full h-32 object-cover rounded border border-white/10">
+                    <div
+                        class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                        <span class="text-xs text-white">Proof of Violation</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="pt-4 flex justify-between items-end border-t border-white/10 mt-4">
+                <span class="text-gray-400">Fine Amount</span>
+                <span class="text-4xl font-bold text-white">₹{{ formatted_amount }}</span>
+            </div>
+        </div>
+
+        <!-- Pay Button -->
+        <button id="payBtn"
+            class="w-full btn-pay py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2">
+            <span>Pay Now</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                </path>
+            </svg>
+        </button>
+
+        <p class="text-center text-xs text-gray-500 mt-4 flex items-center justify-center gap-1">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2zm0-10h2v8h-2z" />
+            </svg>
+            Secure Payment by Razorpay
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Payment Script -->
+    {% if not already_paid %}
+    <script>
+        document.getElementById('payBtn').onclick = function (e) {
+            e.preventDefault();
+
+            var options = {
+                "key": "{{ key_id }}",
+                "amount": "{{ formatted_amount * 100 }}",
+                "currency": "INR",
+                "name": "NETRA Traffic Police",
+                "description": "Fine Payment for Challan #{{ challan.id }}",
+                "image": "https://via.placeholder.com/150", // Replace with logo url
+                "order_id": "{{ order_id }}",
+                "handler": function (response) {
+                    // Verify Payment in Backend
+                    fetch('/api/verify_payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature,
+                            challan_id: "{{ challan.id }}"
+                        })
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert("Payment Successful!");
+                                location.reload();
+                            } else {
+                                alert("Payment Verification Failed: " + data.error);
+                            }
+                        })
+                        .catch(e => alert("Error verifying payment"));
+                },
+                "prefill": {
+                    "name": "{{ challan.violator_name }}",
+                    "email": "{{ challan.violator_email }}",
+                    "contact": ""
+                },
+                "theme": {
+                    "color": "#13ec5b"
+                }
+            };
+            var rzp1 = new Razorpay(options);
+            rzp1.on('payment.failed', function (response) {
+                alert("Payment Failed: " + response.error.description);
+            });
+            rzp1.open();
+        }
+    </script>
+    {% endif %}
+
+</body>
+
+</html>

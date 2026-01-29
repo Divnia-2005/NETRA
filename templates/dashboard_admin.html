@@ -242,6 +242,8 @@
       <button onclick="showSection('monitoring', this)" class="nav-btn" data-i18n="monitoring">Live Monitoring</button>
       <button onclick="showSection('health', this)" class="nav-btn" data-i18n="health">System Health</button>
       <button onclick="showSection('config', this)" class="nav-btn" data-i18n="config">Configuration</button>
+      <button onclick="showSection('restricted_zones', this); loadZones()" class="nav-btn">Restricted Zones</button>
+      <a href="/help" class="nav-btn" data-i18n="help">Help & FAQ</a>
       <button onclick="showSection('profile', this)" class="nav-btn">Profile</button>
 
 
@@ -451,22 +453,62 @@
       {% endif %}
 
       <!-- ACTIVE USER LIST -->
-      <div class="glass p-4 rounded-xl mb-6">
-        <h3 class="panel-title">Active Security Officers</h3>
-        <ul id="userList" class="space-y-2 text-sm mt-3">
-          {% for officer in active_users %}
-          <li class="flex justify-between items-center glass p-3 rounded" id="user-row-{{officer.id}}">
-            <span>{{ officer.name }} ({{ officer.email }})</span>
-            <button onclick="updateUserStatus('{{ officer.id }}', 'blocked')"
-              class="text-red-400 hover:text-red-300 border border-red-500/30 px-2 py-1 rounded text-xs transition duration-200">
-              Block
-            </button>
-          </li>
-          {% endfor %}
+      <div class="glass p-6 rounded-xl mb-6">
+        <h3 class="panel-title mb-4">Active Security Officers & Roles</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="text-gray-400 border-b border-gray-700">
+                <th class="py-2">Name</th>
+                <th class="py-2">Email</th>
+                <th class="py-2">Current Role</th>
+                <th class="py-2">Assign Role</th>
+                <th class="py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="userList">
+              {% for officer in active_users %}
+              <tr class="border-b border-gray-800 hover:bg-white/5 transition" id="user-row-{{officer.id}}">
+                <td class="py-3 font-semibold">{{ officer.name }}</td>
+                <td class="py-3 text-gray-400">{{ officer.email }}</td>
+                <td class="py-3">
+                  <span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-xs border border-blue-500/30">
+                    {{ officer.sub_role or 'Officer' }}
+                  </span>
+                </td>
+                <td class="py-3">
+                  <div class="flex items-center gap-2">
+                    <select id="role-select-{{officer.id}}"
+                      class="bg-black/50 border border-white/10 rounded text-xs p-1 text-gray-300 focus:border-green-500 focus:outline-none">
+                      <option value="Investigator" {% if officer.sub_role=='Investigator' %}selected{% endif %}>
+                        Investigator</option>
+                      <option value="Supervisor" {% if officer.sub_role=='Supervisor' %}selected{% endif %}>Supervisor
+                      </option>
+                      <option value="Analyst" {% if officer.sub_role=='Analyst' %}selected{% endif %}>Analyst</option>
+                    </select>
+                    <button onclick="updateUserRole('{{ officer.id }}')"
+                      class="bg-[#13ec5b]/10 hover:bg-[#13ec5b]/20 text-[#13ec5b] p-1 rounded transition">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="py-3 text-right">
+                  <button onclick="updateUserStatus('{{ officer.id }}', 'blocked')"
+                    class="text-red-400 hover:text-red-300 border border-red-500/30 px-3 py-1 rounded text-xs transition duration-200 hover:bg-red-500/10">
+                    Block Access
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
           {% if not active_users %}
-          <li class="text-gray-500 italic">No active officers found.</li>
+          <p class="text-gray-500 italic mt-4 text-center">No active officers found.</p>
           {% endif %}
-        </ul>
+        </div>
       </div>
 
       <!-- BLOCKED USER HISTORY -->
@@ -487,6 +529,60 @@
           <li class="text-gray-500 italic">No blocked officers.</li>
           {% endif %}
         </ul>
+      </div>
+
+      <!-- CASE MANAGEMENT -->
+      <div class="glass p-6 rounded-xl mt-6 border border-blue-500/20">
+        <h3 class="panel-title mb-4 text-blue-400">Manage Case Assignments</h3>
+        <div class="overflow-x-auto max-h-96 custom-scrollbar">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="text-gray-400 border-b border-gray-700">
+                <th class="py-2 px-4">Case Filename</th>
+                <th class="py-2 px-4">Officer (Current)</th>
+                <th class="py-2 px-4">Status</th>
+                <th class="py-2 px-4">Transfer To</th>
+                <th class="py-2 px-4">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for case in all_cases %}
+              <tr class="border-b border-gray-800 hover:bg-white/5 transition" id="case-row-{{case.id}}">
+                <td class="py-3 px-4">
+                  <div class="font-bold text-green-400 font-mono">{{ case.case_id }}</div>
+                  <div class="text-xs text-gray-500 truncate w-32">{{ case.title }}</div>
+                </td>
+                <td class="py-3 px-4 text-gray-300">
+                  {{ case.assigned_officer_name or 'Unassigned' }}
+                </td>
+                <td class="py-3 px-4">
+                  <span class="px-2 py-1 rounded text-xs border border-gray-600 text-gray-400">{{ case.status }}</span>
+                </td>
+                <td class="py-3 px-4">
+                  <select id="transfer-select-{{case.id}}"
+                    class="bg-black/50 border border-white/10 rounded text-xs p-2 w-32 text-gray-300 focus:border-blue-500 focus:outline-none">
+                    <option value="" disabled selected>Select Officer</option>
+                    {% for off in active_users %}
+                    <option value="{{ off.id }}">{{ off.name }} ({{ off.sub_role or 'Officer' }})</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="py-3 px-4">
+                  <button onclick="reassignCase('{{ case.id }}')"
+                    class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 px-3 py-1 rounded text-xs transition">
+                    Transfer
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+              {% if not all_cases %}
+              <tr>
+                <td colspan="5" class="py-6 text-center text-gray-500 italic">No active cases.</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -545,6 +641,158 @@
       </div>
     </section>
 
+    <!-- RESTRICTED ZONES SECTION -->
+    <section id="restricted_zones" class="section hidden">
+      <h2 class="section-title">Restricted Zone Management</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Add Zone Form -->
+        <div class="glass p-6 rounded-xl border border-red-500/20">
+          <h3 class="panel-title mb-4 font-bold text-red-400">Define New Zone</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="text-sm text-gray-400">Zone Name / Location</label>
+              <input id="zoneName" type="text" placeholder="e.g. Server Room A"
+                class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none">
+            </div>
+            <div>
+              <label class="text-sm text-gray-400">Coordinates / Cam ID</label>
+              <input id="zoneCoords" type="text" placeholder="e.g. CAM-01, 28.12,77.45"
+                class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-sm text-gray-400">Start Time (24h)</label>
+                <input id="zoneStart" type="time"
+                  class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none bg-black">
+              </div>
+              <div>
+                <label class="text-sm text-gray-400">End Time (24h)</label>
+                <input id="zoneEnd" type="time"
+                  class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none bg-black">
+              </div>
+            </div>
+            <div>
+              <label class="text-sm text-gray-400">Violation Type</label>
+              <select id="zoneType"
+                class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none bg-black">
+                <option value="Trespassing">Trespassing</option>
+                <option value="Restricted Entry">Restricted Entry</option>
+                <option value="No Loitering">No Loitering</option>
+              </select>
+            </div>
+            <button onclick="addZone()"
+              class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded shadow-lg shadow-red-500/30">Add
+              Zone Rule</button>
+          </div>
+        </div>
+
+        <!-- Zone List -->
+        <div class="glass p-6 rounded-xl border border-white/5">
+          <h3 class="panel-title mb-4 text-gray-300">Active Restricted Zones</h3>
+          <div id="zoneListContainer" class="space-y-3 h-80 overflow-y-auto custom-scrollbar">
+            <!-- Populated by JS -->
+            <p class="text-gray-500 italic text-center py-4">Loading zones...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SYSTEM CONFIG SECTION -->
+    <section id="system_config" class="section hidden">
+      <h2 class="section-title">System Configuration</h2>
+      <div class="glass p-6 rounded-xl border border-purple-500/20 max-w-2xl">
+        <h3 class="panel-title mb-6 font-bold text-purple-400">Global Settings</h3>
+
+        <div class="space-y-6">
+          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+            <div>
+              <p class="font-bold text-gray-200">Enable AI Auto-Scan</p>
+              <p class="text-xs text-gray-500">Automatically scan uploaded evidence for weapons/objects.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="conf_ai_scan" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
+              </div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+            <div>
+              <p class="font-bold text-gray-200">System Lockdown Mode</p>
+              <p class="text-xs text-gray-500">Restrict all non-admin access immediately.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="conf_lockdown" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600">
+              </div>
+            </label>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400 mb-2 block">Default Alert Broadcast Message</label>
+            <input id="conf_alert_msg" type="text"
+              class="w-full glass p-3 rounded text-white border-white/10 focus:border-purple-500 outline-none"
+              placeholder="Emergency! Please evacuate...">
+          </div>
+
+          <button onclick="saveSystemConfig()"
+            class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded shadow-lg shadow-purple-500/30 transition">
+            Save Configuration
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SYSTEM CONFIG SECTION -->
+    <section id="system_config" class="section hidden">
+      <h2 class="section-title">System Configuration</h2>
+      <div class="glass p-6 rounded-xl border border-purple-500/20 max-w-2xl">
+        <h3 class="panel-title mb-6 font-bold text-purple-400">Global Settings</h3>
+
+        <div class="space-y-6">
+          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+            <div>
+              <p class="font-bold text-gray-200">Enable AI Auto-Scan</p>
+              <p class="text-xs text-gray-500">Automatically scan uploaded evidence for weapons/objects.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="conf_ai_scan" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
+              </div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
+            <div>
+              <p class="font-bold text-gray-200">System Lockdown Mode</p>
+              <p class="text-xs text-gray-500">Restrict all non-admin access immediately.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="conf_lockdown" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600">
+              </div>
+            </label>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400 mb-2 block">Default Alert Broadcast Message</label>
+            <input id="conf_alert_msg" type="text"
+              class="w-full glass p-3 rounded text-white border-white/10 focus:border-purple-500 outline-none"
+              placeholder="Emergency! Please evacuate...">
+          </div>
+
+          <button onclick="saveSystemConfig()"
+            class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded shadow-lg shadow-purple-500/30 transition">
+            Save Configuration
+          </button>
+        </div>
+      </div>
+    </section>
+
     <!-- ALERTS SECTION -->
     <section id="alerts" class="section hidden">
       <h2 class="section-title">System Alerts</h2>
@@ -553,12 +801,16 @@
       <h3 class="text-xl font-bold text-red-400 mb-3 border-b border-gray-700 pb-2">Active Alerts</h3>
       <div id="alertContainer" class="space-y-4 mb-8">
         {% for alert in active_alerts %}
-        <div class="alert {{ 'red' if alert.severity == 'Critical' else 'yellow' }}">
+        <div class="alert {{ 'red' if alert.severity == 'Critical' else 'yellow' }} flex justify-between items-center">
           <span>
             <b>{{ alert.created_at }}</b> — {{ alert.message }} <i class="text-xs text-gray-300">({{ alert.source
               }})</i>
           </span>
-          <button class="ack-btn" onclick="acknowledge(this, '{{ alert.id }}')">Acknowledge</button>
+          <div class="flex gap-2">
+            <button class="text-xs text-blue-400 border border-blue-500/30 px-2 py-1 rounded hover:bg-blue-500/10"
+              onclick="shareAlert('{{ alert.message|e }}', '{{ alert.source|e }}')">Share</button>
+            <button class="ack-btn" onclick="acknowledge(this, '{{ alert.id }}')">Acknowledge</button>
+          </div>
         </div>
         {% endfor %}
         {% if not active_alerts %}
@@ -577,8 +829,14 @@
           <span>
             {{ alert.created_at }} — {{ alert.message }}
           </span>
-          <span
-            class="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded border border-green-500/20">Resolved</span>
+          <div class="flex items-center gap-2">
+            <a href="/generate_case_file/{{ alert.id }}" target="_blank"
+              class="text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded border border-blue-500/20 hover:bg-blue-500/20">
+              Export Case
+            </a>
+            <span
+              class="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded border border-green-500/20">Resolved</span>
+          </div>
         </div>
         {% endfor %}
         {% if not resolved_alerts %}
@@ -686,30 +944,227 @@
     <section id="health" class="section hidden">
       <h1 class="section-title" data-i18n="health">System Health</h1>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="card">CPU Usage<br><span class="stat">42%</span></div>
-        <div class="card">Memory Usage<br><span class="stat">6.2 GB</span></div>
-        <div class="card">Uptime<br><span class="stat">99.9%</span></div>
+      <!-- Status Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="glass p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-xs uppercase">Overall Status</p>
+            <p class="text-green-400 font-bold text-lg">OPERATIONAL</p>
+          </div>
+          <div class="h-3 w-3 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]"></div>
+        </div>
+        <div class="glass p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-xs uppercase">Database</p>
+            <p class="text-green-400 font-bold">Connected</p>
+          </div>
+          <div class="text-2xl">🗄️</div>
+        </div>
+        <div class="glass p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-xs uppercase">AI Engine</p>
+            <p class="text-green-400 font-bold">Active</p>
+          </div>
+          <div class="text-2xl">🧠</div>
+        </div>
+        <div class="glass p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-xs uppercase">Last Backup</p>
+            <p class="text-blue-400 font-bold">2 Hours Ago</p>
+          </div>
+          <div class="text-2xl">💾</div>
+        </div>
+      </div>
+
+      <!-- Live Metrics -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass p-6 rounded-xl">
+          <h3 class="font-bold mb-4 text-green-400 flex items-center gap-2">
+            <span class="animate-pulse">●</span> Live CPU Usage
+          </h3>
+          <div class="h-64">
+            <canvas id="cpuChart"></canvas>
+          </div>
+        </div>
+        <div class="glass p-6 rounded-xl">
+          <h3 class="font-bold mb-4 text-blue-400 flex items-center gap-2">
+            <span class="animate-pulse">●</span> Live Memory Usage
+          </h3>
+          <div class="h-64">
+            <canvas id="memChart"></canvas>
+          </div>
+        </div>
       </div>
     </section>
+    </section>
+
+    <!-- FINES MANAGEMENT SECTION -->
+    <section id="fines" class="section hidden">
+      <h1 class="section-title">Fines & Revenue</h1>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="glass p-6 rounded-xl">
+          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2">Total Fine Revenue</h3>
+          <p class="text-4xl font-bold text-green-400">₹{{ fines_stats.total_revenue or 0 }}</p>
+        </div>
+        <div class="glass p-6 rounded-xl">
+          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2">Total Fines Issued</h3>
+          <p class="text-4xl font-bold text-white">{{ fines_stats.total_count or 0 }}</p>
+        </div>
+        <div class="glass p-6 rounded-xl">
+          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2">Pending Payments</h3>
+          <p class="text-4xl font-bold text-red-400">{{ fines_stats.pending_count or 0 }}</p>
+        </div>
+      </div>
+
+      <!-- Filter & Search -->
+      <div class="flex flex-col md:flex-row gap-4 mb-6">
+        <input type="text" id="fineSearch" onkeyup="filterFines()" placeholder="Search by ID, Name or Reason..."
+          class="flex-1 glass p-3 rounded text-white border-white/10 focus:border-green-500 outline-none">
+        <select id="fineFilter" onchange="filterFines()"
+          class="glass p-3 rounded text-white border-white/10 bg-black outline-none focus:border-green-500">
+          <option value="all">All Status</option>
+          <option value="Paid">Paid</option>
+          <option value="Pending">Pending</option>
+        </select>
+      </div>
+
+      <!-- Fines Table -->
+      <div class="glass rounded-xl overflow-hidden overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-white/5 text-gray-400 uppercase text-xs">
+            <tr>
+              <th class="p-4">ID</th>
+              <th class="p-4">Violator</th>
+              <th class="p-4">Violation</th>
+              <th class="p-4">Amount</th>
+              <th class="p-4">Issued By</th>
+              <th class="p-4">Status</th>
+              <th class="p-4">Date</th>
+              <th class="p-4">Action</th>
+            </tr>
+          </thead>
+          <tbody id="finesTableBody">
+            {% for fine in all_fines %}
+            <tr class="border-b border-white/5 hover:bg-white/5 fine-row" data-status="{{ fine.status }}"
+              data-content="{{ fine.id }} {{ fine.violator_name }} {{ fine.reason }}">
+              <td class="p-4 font-mono text-green-400">#{{ fine.id }}</td>
+              <td class="p-4 font-bold">{{ fine.violator_name }}</td>
+              <td class="p-4">{{ fine.reason }}</td>
+              <td class="p-4 font-mono">₹{{ fine.amount }}</td>
+              <td class="p-4 text-gray-400">Officer #{{ fine.issued_by }}</td>
+              <td class="p-4">
+                {% if fine.status == 'Paid' %}
+                <span
+                  class="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">PAID</span>
+                {% else %}
+                <span
+                  class="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">PENDING</span>
+                {% endif %}
+              </td>
+              <td class="p-4 text-gray-500 text-xs">{{ fine.created_at }}</td>
+              <td class="p-4">
+                {% if fine.evidence_path %}
+                <a href="{{ url_for('static', filename=fine.evidence_path.replace('static/', '')) }}" target="_blank"
+                  class="text-blue-400 hover:underline">View Proof</a>
+                {% else %}
+                <span class="text-gray-600">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if not all_fines %}
+        <div class="p-8 text-center text-gray-500 italic">No fines found.</div>
+        {% endif %}
+      </div>
+    </section>
+
     <section id="config" class="section hidden">
       <h1 class="section-title" data-i18n="config">System Configuration</h1>
 
-      <label class="block mb-4">
-        Detection Sensitivity
-        <input id="sensitivity" type="range" class="w-full mt-2 accent-green-500">
-      </label>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Detection Settings -->
+        <div class="glass p-6 rounded-xl space-y-6">
+          <h3 class="text-lg font-bold text-green-400 border-b border-white/10 pb-2">Detection Parameters</h3>
 
-      <label class="block mb-4">
-        Alert Threshold
-        <input id="threshold" type="number"
-          class="w-full glass p-2 rounded focus:outline-none focus:border-green-500 transition-colors">
-      </label>
+          <label class="block">
+            <div class="flex justify-between mb-2">
+              <span class="text-sm text-gray-300">Detection Sensitivity</span>
+              <span id="sensVal" class="text-green-400 font-bold">75%</span>
+            </div>
+            <input id="sensitivity" type="range"
+              class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500" value="75"
+              oninput="document.getElementById('sensVal').innerText = this.value + '%'">
+          </label>
 
-      <button onclick="saveSettings()" class="btn">Save Settings</button>
+          <label class="block">
+            <div class="flex justify-between mb-2">
+              <span class="text-sm text-gray-300">Alert Confidence Threshold</span>
+              <span class="text-xs text-gray-500">Min score to trigger alert</span>
+            </div>
+            <input id="threshold" type="number" value="80"
+              class="w-full glass p-2 rounded focus:outline-none focus:border-green-500 transition-colors text-white">
+          </label>
 
-      <p id="savedMsg" class="hidden text-green-400 mt-3">
-        ✔ Settings saved successfully
+          <div class="flex items-center justify-between p-3 glass rounded-lg border border-red-500/20">
+            <span class="text-red-300 font-bold">Maintenance Mode</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="maintMode" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600">
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Notification & Data -->
+        <div class="glass p-6 rounded-xl space-y-6">
+          <h3 class="text-lg font-bold text-blue-400 border-b border-white/10 pb-2">Notifications & Storage</h3>
+
+          <div class="space-y-3">
+            <span class="text-sm text-gray-300 block">Alert Channels</span>
+
+            <label class="flex items-center space-x-3 cursor-pointer group">
+              <div
+                class="w-5 h-5 glass rounded border border-gray-600 flex items-center justify-center group-hover:border-green-500">
+                <input type="checkbox" checked class="accent-green-500 h-4 w-4">
+              </div>
+              <span class="text-gray-400 text-sm group-hover:text-white transition">Email Notifications</span>
+            </label>
+
+            <label class="flex items-center space-x-3 cursor-pointer group">
+              <div
+                class="w-5 h-5 glass rounded border border-gray-600 flex items-center justify-center group-hover:border-green-500">
+                <input type="checkbox" class="accent-green-500 h-4 w-4">
+              </div>
+              <span class="text-gray-400 text-sm group-hover:text-white transition">SMS Alerts</span>
+            </label>
+          </div>
+
+          <label class="block pt-4 border-t border-white/5">
+            <div class="flex justify-between mb-2">
+              <span class="text-sm text-gray-300">Log Retention (Days)</span>
+              <span id="retenVal" class="text-blue-400 font-bold">30 Days</span>
+            </div>
+            <input id="retention" type="range" min="7" max="365" value="30"
+              class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              oninput="document.getElementById('retenVal').innerText = this.value + ' Days'">
+          </label>
+        </div>
+      </div>
+
+      <div class="mt-8 flex justify-end">
+        <button onclick="saveSettings()"
+          class="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all">
+          Save Configuration
+        </button>
+      </div>
+
+      <p id="savedMsg" class="hidden text-green-400 mt-4 text-right font-bold animate-bounce">
+        ✔ Settings saved successfully!
       </p>
     </section>
     <!-- PROFILE SECTION -->
@@ -767,7 +1222,26 @@
     {% include 'component_chatbot.html' %}
   </main>
   <script>
+    /* ---------- SHARE ALERT ---------- */
+    function shareAlert(message, source) {
+      const text = `ALERT REPORT\nSource: ${source}\nMessage: ${message}\n- NETRA System`;
+      const encodedText = encodeURIComponent(text);
+
+      // Simple selection dialog logic (using browser native for simplicity or creating a modal)
+      // For quick implementation:
+      const choice = prompt("Share via (type number):\n1. WhatsApp\n2. Email", "1");
+
+      if (choice === '1') {
+        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+      } else if (choice === '2') {
+        window.location.href = `mailto:?subject=NETRA%20Alert&body=${encodedText}`;
+      }
+    }
+
     /* ---------- DASHBOARD CHARTS ---------- */
+    /* ---------- DASHBOARD CHARTS ---------- */
+    let cpuChart, memChart;
+
     function loadCharts() {
       // Safe Data Injection
       const pendingCount = Number("{{ stats.cases }}") - Number("{{ stats.resolved }}");
@@ -815,6 +1289,116 @@
           plugins: { legend: { display: false } }
         }
       });
+
+      initHealthCharts();
+    }
+
+    /* --- HEALTH CHARTS --- */
+    function initHealthCharts() {
+      // CPU Chart
+      const cpuCtx = document.getElementById("cpuChart").getContext('2d');
+      cpuChart = new Chart(cpuCtx, {
+        type: 'line',
+        data: {
+          labels: Array(20).fill(''),
+          datasets: [{
+            label: 'CPU %',
+            data: Array(20).fill(0),
+            borderColor: '#4ade80',
+            borderWidth: 2,
+            backgroundColor: 'rgba(74, 222, 128, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            y: { min: 0, max: 100, grid: { color: '#374151' }, ticks: { color: '#9ca3af' } },
+            x: { display: false }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // Memory Chart
+      const memCtx = document.getElementById("memChart").getContext('2d');
+      memChart = new Chart(memCtx, {
+        type: 'line',
+        data: {
+          labels: Array(20).fill(''),
+          datasets: [{
+            label: 'RAM %',
+            data: Array(20).fill(0),
+            borderColor: '#60a5fa',
+            borderWidth: 2,
+            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            y: { min: 0, max: 100, grid: { color: '#374151' }, ticks: { color: '#9ca3af' } },
+            x: { display: false }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // Start Polling
+      setInterval(fetchHealthStats, 2000);
+    }
+
+    async function fetchHealthStats() {
+      // Only fetch if Health section is visible to save resources
+      if (document.getElementById('health').classList.contains('hidden')) return;
+
+      try {
+        const res = await fetch('/api/system_stats');
+        const data = await res.json();
+
+        updateChart(cpuChart, data.cpu);
+        updateChart(memChart, data.memory);
+      } catch (e) { console.error("Health fetch failed", e); }
+    }
+
+    function updateChart(chart, newValue) {
+      const data = chart.data.datasets[0].data;
+      data.push(newValue);
+      data.shift(); // Remove oldest
+      chart.update();
+    }
+
+    async function saveSettings() {
+      const sensitivity = document.getElementById('sensitivity').value;
+      const threshold = document.getElementById('threshold').value;
+      const maintenance = document.getElementById('maintMode').checked;
+      const retention = document.getElementById('retention').value;
+
+      const config = { sensitivity, threshold, maintenance, retention };
+
+      // Simulate API call
+      // In real app: fetch('/api/update_config', { method: 'POST', ... })
+
+      const btn = event.target;
+      const originalText = btn.innerText;
+      btn.innerText = "Saving...";
+
+      setTimeout(() => {
+        btn.innerText = originalText;
+        const msg = document.getElementById("savedMsg");
+        msg.classList.remove("hidden");
+        setTimeout(() => msg.classList.add("hidden"), 3000);
+        console.log("Configuration Saved:", config);
+      }, 800);
     }
 
 
@@ -1043,6 +1627,74 @@
       loadCharts();
     };
 
+    // Chart instances
+    let statusChart, activityChart;
+
+    async function loadCharts() {
+      try {
+        const res = await fetch('/api/analytics_data');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // 1. Overview Status (Doughnut)
+        const ctxStatus = document.getElementById("overviewStatusChart").getContext("2d");
+        const severityLabels = Object.keys(data.severity);
+        const severityValues = Object.values(data.severity);
+
+        if (statusChart) statusChart.destroy();
+        statusChart = new Chart(ctxStatus, {
+          type: "doughnut",
+          data: {
+            labels: severityLabels.length ? severityLabels : ["No Data"],
+            datasets: [{
+              data: severityValues.length ? severityValues : [1],
+              backgroundColor: ["#ef4444", "#eab308", "#22c55e", "#3b82f6"],
+              borderColor: "#050b07",
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: "right", labels: { color: "#fff" } } }
+          }
+        });
+
+        // 2. Activity Trend (Line)
+        const ctxActivity = document.getElementById("overviewActivityChart").getContext("2d");
+        const trendLabels = Object.keys(data.trend);
+        const trendValues = Object.values(data.trend);
+
+        if (activityChart) activityChart.destroy();
+        activityChart = new Chart(ctxActivity, {
+          type: "line",
+          data: {
+            labels: trendLabels,
+            datasets: [{
+              label: "Alerts per Day",
+              data: trendValues,
+              borderColor: "#10b981",
+              backgroundColor: "rgba(16, 185, 129, 0.2)",
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { ticks: { color: "#9ca3af" }, grid: { color: "#374151" } },
+              y: { ticks: { color: "#9ca3af", stepSize: 1 }, grid: { color: "#374151" } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+
+      } catch (e) {
+        console.error("Chart Load Error:", e);
+      }
+    }
+
     /* ---------- USER STATUS UPDATE ---------- */
     async function updateUserStatus(userId, status) {
       if (!confirm(`Are you sure you want to ${status} this user?`)) return;
@@ -1060,6 +1712,166 @@
           // Optional: Reload if empty to remove the panel
         } else {
           alert("Action failed: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server error");
+      }
+    }
+
+    /* ---------- USER ROLE UPDATE ---------- */
+    async function updateUserRole(userId) {
+      const select = document.getElementById(`role-select-${userId}`);
+      const newRole = select.value;
+
+      try {
+        const res = await fetch('/api/update_user_role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: userId, sub_role: newRole })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          // Visual feedback
+          const btn = select.nextElementSibling;
+          const originalHTML = btn.innerHTML;
+          btn.innerHTML = '✔';
+          btn.classList.add('text-green-500');
+          setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('text-green-500');
+            window.location.reload(); // Reload to update the "Current Role" badge
+          }, 1000);
+        } else {
+          alert("Update failed: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server error");
+      }
+    }
+
+    /* ---------- RESTRICTED ZONES ---------- */
+    async function addZone() {
+      const name = document.getElementById('zoneName').value;
+      const coords = document.getElementById('zoneCoords').value;
+      const start = document.getElementById('zoneStart').value;
+      const end = document.getElementById('zoneEnd').value;
+      const type = document.getElementById('zoneType').value;
+
+      if (!name || !start || !end) return alert("Please fill all fields");
+
+      try {
+        const res = await fetch('/api/add_zone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, coordinates: coords, start_time: start, end_time: end, violation_type: type })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Zone added successfully");
+          loadZones();
+          document.getElementById('zoneName').value = "";
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) { alert("Server Error"); }
+    }
+
+    async function loadZones() {
+      try {
+        const res = await fetch('/api/get_zones');
+        const zones = await res.json();
+        const container = document.getElementById('zoneListContainer');
+
+        if (zones.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 italic text-center py-4">No active zones.</p>';
+          return;
+        }
+
+        container.innerHTML = zones.map(z => `
+          <div class="bg-white/5 p-3 rounded flex justify-between items-center border-l-2 border-red-500">
+            <div>
+              <p class="font-bold text-gray-200 text-sm">${z.name}</p>
+              <p class="text-xs text-red-400 font-mono">${z.start_time} - ${z.end_time}</p>
+              <p class="text-[10px] text-gray-500">${z.violation_type}</p>
+            </div>
+            <button onclick="deleteZone(${z.id})" class="text-gray-400 hover:text-red-500 text-lg">×</button>
+          </div>
+        `).join('');
+      } catch (e) { console.error(e); }
+    }
+
+    async function deleteZone(id) {
+      if (!confirm("Deactivate this zone?")) return;
+      try {
+        await fetch('/api/delete_zone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        loadZones();
+      } catch (e) { }
+    }
+
+    /* ---------- SYSTEM CONFIG ---------- */
+    async function loadSystemConfig() {
+      try {
+        const res = await fetch('/api/get_system_config');
+        const config = await res.json();
+
+        if (config) {
+          document.getElementById('conf_ai_scan').checked = config['ai_scan'] === 'true';
+          document.getElementById('conf_lockdown').checked = config['lockdown'] === 'true';
+          document.getElementById('conf_alert_msg').value = config['alert_msg'] || '';
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    async function saveSystemConfig() {
+      const data = {
+        'ai_scan': document.getElementById('conf_ai_scan').checked ? 'true' : 'false',
+        'lockdown': document.getElementById('conf_lockdown').checked ? 'true' : 'false',
+        'alert_msg': document.getElementById('conf_alert_msg').value
+      };
+
+      try {
+        const res = await fetch('/api/update_system_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const resp = await res.json();
+        if (resp.success) alert("Configuration Saved.");
+        else alert("Error saving config.");
+      } catch (e) {
+        alert("Server Error");
+      }
+    }
+
+    /* ---------- REASSIGN CASE ---------- */
+    async function reassignCase(caseId) {
+      const select = document.getElementById(`transfer-select-${caseId}`);
+      const officerId = select.value;
+
+      if (!officerId) return alert("Please select an officer to transfer the case to.");
+
+      if (!confirm("Confirm case transfer?")) return;
+
+      try {
+        const res = await fetch('/api/reassign_case', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ case_id: caseId, officer_id: officerId })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert("Case reassigned successfully.");
+          window.location.reload();
+        } else {
+          alert("Transfer failed: " + data.error);
         }
       } catch (e) {
         console.error(e);
@@ -1095,6 +1907,36 @@
       } catch (e) { console.error("Poll error", e); }
     }
 
+    function exportReports() {
+      // Simple client-side CSV export of the fines table
+      const rows = document.querySelectorAll("#finesTableBody tr");
+      let csv = "ID,Violator,Reason,Amount,Status,Date\n";
+
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        if (cols.length > 0) {
+          const id = cols[0].innerText.replace('#', '');
+          const name = cols[1].innerText;
+          const reason = cols[2].innerText;
+          const amount = cols[3].innerText.replace('₹', '');
+          const status = cols[5].innerText.trim();
+          const date = cols[6].innerText;
+          csv += `${id},${name},${reason},${amount},${status},${date}\n`;
+        }
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('hidden', '');
+      a.setAttribute('href', url);
+      a.setAttribute('download', 'netra_global_report.csv');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      alert("Report Downloaded!");
+    }
+
     function markSeen() {
       document.getElementById('notificationDot').classList.add('hidden');
       if (serverMaxMsgId > 0) lastMsgId = serverMaxMsgId;
@@ -1103,6 +1945,62 @@
     // Poll every 5s
     setInterval(pollState, 5000);
     pollState();
+
+    /* ---------- SYSTEM CONFIG ---------- */
+    async function loadSystemConfig() {
+      try {
+        const res = await fetch('/api/get_system_config');
+        const config = await res.json();
+
+        if (config) {
+          document.getElementById('conf_ai_scan').checked = config['ai_scan'] === 'true';
+          document.getElementById('conf_lockdown').checked = config['lockdown'] === 'true';
+          document.getElementById('conf_alert_msg').value = config['alert_msg'] || '';
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    async function saveSystemConfig() {
+      const data = {
+        'ai_scan': document.getElementById('conf_ai_scan').checked ? 'true' : 'false',
+        'lockdown': document.getElementById('conf_lockdown').checked ? 'true' : 'false',
+        'alert_msg': document.getElementById('conf_alert_msg').value
+      };
+
+      try {
+        const res = await fetch('/api/update_system_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const resp = await res.json();
+        if (resp.success) alert("Configuration Saved.");
+        else alert("Error saving config.");
+      } catch (e) {
+        alert("Server Error");
+      }
+    }
+
+    /* ---------- FINE FILTERS ---------- */
+    function filterFines() {
+      const query = document.getElementById('fineSearch').value.toLowerCase();
+      const type = document.getElementById('fineFilter').value;
+      const rows = document.querySelectorAll('.fine-row');
+
+      rows.forEach(row => {
+        const content = row.getAttribute('data-content').toLowerCase();
+        const status = row.getAttribute('data-status');
+
+        let matchQuery = content.includes(query);
+        let matchType = (type === 'all') || (status === type);
+
+        if (matchQuery && matchType) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
   </script>
   <!-- STYLES -->
   <style>

@@ -1,20 +1,33 @@
 <!-- Chatbot Component -->
 <style>
     .custom-scrollbar-chat::-webkit-scrollbar {
-        width: 6px;
+        width: 10px;
+        /* Wider for easier grabbing */
     }
 
     .custom-scrollbar-chat::-webkit-scrollbar-track {
-        background: transparent;
+        background: rgba(0, 0, 0, 0.4);
+        /* Dark visible track */
+        border-radius: 4px;
     }
 
     .custom-scrollbar-chat::-webkit-scrollbar-thumb {
-        background-color: rgba(34, 197, 94, 0.3);
-        border-radius: 10px;
+        background-color: #22c55e;
+        /* Bright Green */
+        border-radius: 4px;
+        border: 2px solid rgba(0, 0, 0, 0.2);
+        /* Contrast border */
+        background-clip: padding-box;
     }
 
     .custom-scrollbar-chat::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(34, 197, 94, 0.6);
+        background-color: #16a34a;
+    }
+
+    /* Firefox Support */
+    .custom-scrollbar-chat {
+        scrollbar-width: thin;
+        scrollbar-color: #22c55e rgba(0, 0, 0, 0.4);
     }
 </style>
 <div id="netra-chatbot" class="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
@@ -25,7 +38,7 @@
         class="relative pointer-events-auto hidden flex-col w-80 h-96 bg-[#0f2818]/95 backdrop-blur-md border border-green-500/30 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0">
 
         <!-- Scroll Button -->
-        <button id="chat-scroll-btn" onclick="scrollToBottom()"
+        <button id="chat-scroll-btn" onclick="scrollToBottomSmooth()"
             class="hidden absolute bottom-20 left-1/2 -translate-x-1/2 p-2 bg-green-500 hover:bg-green-400 rounded-full shadow-lg text-white z-50 transition-all duration-300 animate-bounce ring-2 ring-green-900">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
@@ -52,7 +65,9 @@
         <!-- Messages Area -->
         <!-- Native Scrolling enabled by overflow-y-auto -->
         <!-- Added min-h-0 to ensure flex scrolling works reliably -->
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 text-sm min-h-0 custom-scrollbar-chat">
+        <!-- Added max-height: 260px as a fallback to ensure overflow triggers -->
+        <div id="chat-messages" style="max-height: 260px;"
+            class="flex-1 overflow-y-auto p-4 space-y-3 text-sm min-h-0 custom-scrollbar-chat overscroll-contain">
             <!-- Initial Message -->
             <div class="flex gap-2">
                 <div
@@ -69,6 +84,17 @@
             <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
                 <input id="chat-input" type="text" placeholder="Type command..."
                     class="flex-1 bg-white/5 rounded px-3 py-1.5 text-sm text-white placeholder-gray-500 border border-transparent focus:border-green-500/50 focus:outline-none transition-colors">
+
+                <!-- Voice Input Button -->
+                <button type="button" id="voice-btn" onclick="startDictation()"
+                    class="bg-gray-700/50 hover:bg-green-600/50 text-white p-1.5 rounded transition-colors border border-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                </button>
+
                 <button type="submit"
                     class="bg-green-600 hover:bg-green-500 text-white p-1.5 rounded transition-colors shadow-lg shadow-green-500/20">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
@@ -100,6 +126,7 @@
             setTimeout(() => {
                 win.classList.remove('scale-95', 'opacity-0');
                 win.classList.add('scale-100', 'opacity-100');
+                scrollToBottom(); // Auto scroll on open
                 startScrollCheck(); // Start monitoring
             }, 10);
             document.getElementById('chat-input').focus();
@@ -113,8 +140,50 @@
         }
     }
 
+    /* --- VOICE RECOGNITION --- */
+    function startDictation() {
+        if (window.hasOwnProperty('webkitSpeechRecognition')) {
+            const recognition = new webkitSpeechRecognition();
+
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = "en-US";
+
+            const btn = document.getElementById('voice-btn');
+            const originalHtml = btn.innerHTML;
+
+            // Visual feedback: Red pulsing dot
+            btn.innerHTML = `<div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>`;
+            recognition.start();
+
+            recognition.onresult = function (e) {
+                document.getElementById('chat-input').value = e.results[0][0].transcript;
+                recognition.stop();
+                btn.innerHTML = originalHtml;
+
+                // Auto-submit after small delay
+                setTimeout(() => {
+                    handleChatSubmit(new Event('submit'));
+                }, 500);
+            };
+
+            recognition.onerror = function (e) {
+                recognition.stop();
+                btn.innerHTML = originalHtml;
+                console.error("Speech error", e);
+            };
+
+            recognition.onend = function () {
+                btn.innerHTML = originalHtml;
+            };
+
+        } else {
+            alert("Voice commands are not supported in this browser. Please use Chrome.");
+        }
+    }
+
     async function handleChatSubmit(e) {
-        e.preventDefault();
+        if (e) e.preventDefault();
         const input = document.getElementById('chat-input');
         const msg = input.value.trim();
         if (!msg) return;
@@ -160,7 +229,11 @@
 
         div.innerHTML = sender === 'user' ? (bubble + avatar) : (avatar + bubble);
         container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
+
+        // Ensure content is rendered before scrolling
+        requestAnimationFrame(() => {
+            scrollToBottom();
+        });
     }
 
     function addLoading() {
@@ -178,7 +251,10 @@
             </div>
         `;
         container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
+
+        requestAnimationFrame(() => {
+            scrollToBottom();
+        });
         return id;
     }
 
@@ -189,7 +265,16 @@
 
     function scrollToBottom() {
         const container = document.getElementById('chat-messages');
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    function scrollToBottomSmooth() {
+        const container = document.getElementById('chat-messages');
+        if (container) {
+            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        }
     }
 
     // --- ROBUST SCROLL LOGIC ---

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Case Report: {{ case.case_id }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+
+        body {
+            font-family: sans-serif;
+            background: white;
+            color: black;
+        }
+    </style>
+</head>
+
+<body class="p-8 max-w-4xl mx-auto">
+
+    <div class="flex justify-between items-center mb-8 border-b-2 border-black pb-4">
+        <div>
+            <h1 class="text-3xl font-bold">NETRA INVESTIGATION REPORT</h1>
+            <p class="text-gray-600">Generated on: {{ date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        </div>
+        <div class="text-right">
+            <div class="text-xl font-mono font-bold">{{ case.case_id }}</div>
+            <div
+                class="text-sm uppercase font-bold {{ 'text-red-600' if case.status=='Closed' else 'text-green-600' }}">
+                STATUS: {{ case.status }}</div>
+        </div>
+    </div>
+
+    <!-- Case Info -->
+    <div class="grid grid-cols-2 gap-8 mb-8">
+        <div>
+            <h3 class="font-bold border-b border-gray-300 mb-2">CASE DETAILS</h3>
+            <p><strong>Title:</strong> {{ case.title }}</p>
+            <p><strong>Description:</strong> {{ case.description }}</p>
+            <p><strong>Created Date:</strong> {{ case.created_at }}</p>
+        </div>
+        <div>
+            <h3 class="font-bold border-b border-gray-300 mb-2">OFFICER INFO</h3>
+            <p><strong>Assigned To:</strong> {{ case.officer_name or 'Unassigned' }}</p>
+            <p><strong>Created By:</strong> {{ case.creator_name }}</p>
+        </div>
+    </div>
+
+    <!-- Evidence -->
+    <div class="mb-8">
+        <h3 class="font-bold border-b-2 border-black mb-4 uppercase">Evidence Log</h3>
+        <table class="w-full text-sm text-left border-collapse">
+            <thead>
+                <tr class="bg-gray-100 border-b border-black">
+                    <th class="p-2 border border-gray-300">File</th>
+                    <th class="p-2 border border-gray-300">Type</th>
+                    <th class="p-2 border border-gray-300">Tags</th>
+                    <th class="p-2 border border-gray-300">Status</th>
+                    <th class="p-2 border border-gray-300">AI Feedback</th>
+                    <th class="p-2 border border-gray-300">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in evidence %}
+                <tr class="border-b border-gray-300">
+                    <td class="p-2 border border-gray-300 font-mono">{{ item.file_path.split('/')[-1] }}</td>
+                    <td class="p-2 border border-gray-300">{{ item.file_type }}</td>
+                    <td class="p-2 border border-gray-300">{{ item.tags }}</td>
+                    <td class="p-2 border border-gray-300">{{ item.status }}</td>
+                    <td class="p-2 border border-gray-300 text-xs">{{ item.ai_feedback or '-' }}</td>
+                    <td class="p-2 border border-gray-300">{{ item.created_at }}</td>
+                </tr>
+                {% endfor %}
+                {% if not evidence %}
+                <tr>
+                    <td colspan="6" class="p-4 text-center italic">No evidence recorded.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Signature Block -->
+    <div class="mt-16 grid grid-cols-2 gap-16">
+        <div class="border-t border-black pt-2 text-center">
+            <p class="font-bold">Officer Signature</p>
+        </div>
+        <div class="border-t border-black pt-2 text-center">
+            <p class="font-bold">Supervisor/Admin Signature</p>
+        </div>
+    </div>
+
+    <div class="fixed bottom-4 right-4 no-print">
+        <button onclick="window.print()"
+            class="bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg font-bold hover:bg-blue-700">Print
+            Report</button>
+    </div>
+
+</body>
+
+</html>
