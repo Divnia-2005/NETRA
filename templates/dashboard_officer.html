@@ -195,6 +195,46 @@
       background-color: rgba(19, 236, 91, 0.2);
       color: #13ec5b;
     }
+
+    @keyframes scan {
+      0% {
+        top: 0%;
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      90% {
+        opacity: 1;
+      }
+
+      100% {
+        top: 100%;
+        opacity: 0;
+      }
+    }
+
+    @keyframes scan {
+      0% {
+        top: 0%;
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      90% {
+        opacity: 1;
+      }
+
+      100% {
+        top: 100%;
+        opacity: 0;
+      }
+    }
   </style>
 </head>
 
@@ -403,6 +443,25 @@
         <button onclick="openChallanModal()"
           class="bg-blue-600/20 text-blue-400 border border-blue-600 px-4 py-3 rounded hover:bg-blue-600 hover:text-white transition"
           data-i18n="issue_challan">Report Incident</button>
+      </div>
+
+      <!-- SUSPECT SEARCH ENGINE -->
+      <div class="glass p-6 rounded-xl border border-blue-500/30 mb-6">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>🔎</span> <span data-i18n="suspect_search">Find Suspect in Crowd</span>
+        </h2>
+        <div class="flex gap-4 mb-4">
+          <input id="suspectQuery" type="text" placeholder="e.g. Red Shirt, Backpack, Running..."
+            class="w-full glass p-3 rounded text-white border-white/20 focus:border-blue-500 outline-none placeholder-gray-500">
+          <button onclick="searchSuspects()"
+            class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded font-bold shadow-lg shadow-blue-500/30 transition">
+            Scan Cameras
+          </button>
+        </div>
+
+        <div id="searchResults" class="grid grid-cols-2 md:grid-cols-4 gap-4 hidden">
+          <!-- Results injected here -->
+        </div>
       </div>
 
       <!-- LIVE FEEDS -->
@@ -1829,6 +1888,43 @@
         console.error(e);
         container.innerHTML = '<p class="text-red-400 italic text-center py-4">Error loading logs.</p>';
       }
+    }
+
+    /* --- SUSPECT SEARCH --- */
+    async function searchSuspects() {
+      const query = document.getElementById('suspectQuery').value;
+      const container = document.getElementById('searchResults');
+
+      if (!query) return alert("Enter a description to search.");
+
+      container.classList.remove('hidden');
+      container.innerHTML = '<p class="text-gray-400 col-span-full text-center py-4">Scanning active feeds...</p>';
+
+      try {
+        const res = await fetch('/api/search_suspects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const results = await res.json();
+
+        if (results.length === 0) {
+          container.innerHTML = '<p class="text-gray-500 col-span-full text-center py-4">No matches found in last 30 minutes.</p>';
+          return;
+        }
+
+        container.innerHTML = results.map(r => `
+                <div class="bg-black/50 border border-white/10 rounded overflow-hidden hover:border-blue-500 transition cursor-pointer" onclick="openChallanModal(); document.getElementById('challanName').value='${r.desc}'">
+                    <img src="${r.img}" class="w-full h-32 object-cover opacity-80 hover:opacity-100">
+                    <div class="p-2">
+                        <p class="text-xs font-bold text-blue-300">${r.cam}</p>
+                        <p class="text-xs text-gray-400">${r.time}</p>
+                        <p class="text-sm font-semibold text-white mt-1">${r.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+
+      } catch (e) { console.error(e); }
     }
 
     /* --- CROWD DENSITY --- */

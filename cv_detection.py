@@ -42,6 +42,11 @@ def start_detection():
 
     while True:
         ret, frame = cap.read()
+        
+        if not ret:
+            print("Error: Could not read frame from camera. Exiting...")
+            break
+            
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # UI Overlay
