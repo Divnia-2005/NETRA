@@ -726,10 +726,16 @@
                 <td class="py-3 px-4">
                   {% if entry.status == 'Entered' %}
                   <span class="text-green-500 font-bold text-xs">Entered</span>
+                  {% elif entry.status == 'Approved' %}
+                  <span class="text-blue-400 font-bold text-xs">Approved</span>
                   {% elif entry.status == 'Paid' %}
-                  <span class="text-blue-400 font-bold text-xs">Paid</span>
+                  <span class="text-blue-300 font-bold text-xs">Paid (Pending Approval)</span>
+                  <button onclick="approvePublicEntry('{{ entry.id }}')"
+                    class="ml-2 bg-green-600 hover:bg-green-500 text-white text-[10px] px-2 py-0.5 rounded uppercase font-bold">Approve</button>
                   {% else %}
                   <span class="text-gray-500 text-xs">{{ entry.status }}</span>
+                  <button onclick="approvePublicEntry('{{ entry.id }}')"
+                    class="ml-2 bg-green-600 hover:bg-green-500 text-white text-[10px] px-2 py-0.5 rounded uppercase font-bold">Approve</button>
                   {% endif %}
                 </td>
                 <td class="py-3 px-4 text-xs text-gray-500 font-mono">{{ entry.payment_id }}</td>
@@ -2071,6 +2077,29 @@
           row.style.display = 'none';
         }
       });
+    }
+
+    /* ---------- APPROVE PUBLIC ENTRY (NEW) ---------- */
+    async function approvePublicEntry(entryId) {
+      if (!confirm("Approve this entry? This will allow the visitor to pass inspection.")) return;
+
+      try {
+        const res = await fetch('/api/approve_public_entry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: entryId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Entry Approved!");
+          window.location.reload();
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Server Error");
+      }
     }
   </script>
   <!-- STYLES -->

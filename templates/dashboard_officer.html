@@ -336,16 +336,7 @@
       NETRA Officer
     </span>
 
-    <!-- SOS BUTTON -->
-    <button onclick="openSOSModal()" aria-label="Trigger SOS Emergency" title="Trigger SOS"
-      class="bg-red-600 hover:bg-red-500 text-white px-4 py-1.5 rounded-full font-bold animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)] mr-4 flex items-center gap-2 border border-red-400 focus:outline-none focus:ring-4 focus:ring-red-400">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd"
-          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-          clip-rule="evenodd" />
-      </svg>
-      SOS
-    </button>
+
 
     <!-- NOTIFICATION BELL -->
     <div class="relative mr-2 group z-50">
@@ -472,11 +463,8 @@
         <button class="nav-btn" onclick="showSection('analysis', this)" data-i18n="analysis">Analysis</button>
         <button class="nav-btn" onclick="showSection('reports', this)" data-i18n="reports">Reports</button>
         <button class="nav-btn" onclick="showSection('messages', this)" data-i18n="messages">Messages</button>
-        <button class="nav-btn text-orange-400" onclick="showSection('ai_reviews', this); loadReviews()">
-          <span>⚠️ AI Reviews</span>
-        </button>
-        <button class="nav-btn" onclick="showSection('activity_log', this); loadActivityLogs()"
-          data-i18n="activity_log">Activity Log</button>
+
+
         <button class="nav-btn text-blue-400" onclick="showSection('verify_entry', this)">
           <span>🎟️ Verify Entry</span>
         </button>
@@ -793,9 +781,10 @@
           <h3 class="font-bold text-lg">Download Reports</h3>
           <p class="text-sm text-gray-400">Export incident logs and alerts to Excel.</p>
         </div>
-        <a href="/export_reports" class="bg-[#13ec5b] text-black px-4 py-2 rounded hover:bg-green-400 font-bold">
+        <button onclick="exportReports()"
+          class="bg-[#13ec5b] text-black px-4 py-2 rounded hover:bg-green-400 font-bold">
           Export to Excel
-        </a>
+        </button>
       </div>
     </section>
 
@@ -858,7 +847,34 @@
       </div>
     </section>
 
-    <!-- CASES SECTION -->
+    <!-- VERIFY ENTRY -->
+    <section id="verify_entry" class="section hidden">
+      <h2 class="text-xl font-bold mb-4">Verify Visitor Entry</h2>
+      <div class="glass p-8 rounded-xl max-w-lg mx-auto border border-white/10">
+        <p class="text-gray-400 mb-6 text-center">Search visitor database by Name and Phone Number.</p>
+
+        <div class="space-y-4 mb-6">
+          <div>
+            <label class="text-xs text-gray-400 ml-1">Visitor Name</label>
+            <input id="vizName" type="text" placeholder="John Doe"
+              class="w-full glass p-3 rounded text-white border-white/20 focus:border-green-500 outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-gray-400 ml-1">Phone Number</label>
+            <input id="vizPhone" type="text" placeholder="9876543210"
+              class="w-full glass p-3 rounded text-white border-white/20 focus:border-green-500 outline-none">
+          </div>
+        </div>
+
+        <button onclick="verifyVisitor()"
+          class="w-full bg-[#13ec5b] text-black px-8 py-3 rounded-xl font-bold text-lg hover:bg-green-400 shadow-lg shadow-green-500/30 transition transform hover:scale-[1.02]">
+          Search & Verify
+        </button>
+
+        <div id="verifyResult" class="mt-6 hidden"></div>
+      </div>
+    </section>
+
     <section id="cases" class="section hidden">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold">My Case Files</h2>
@@ -1023,15 +1039,58 @@
       <!-- SETTINGS -->
       <section id="settings" class="section hidden">
         <h2 class="text-xl font-bold mb-4">Settings</h2>
-        <div class="glass p-6 rounded-xl max-w-lg">
-          <label class="block mb-4">
-            Alert Volume
-            <input type="range" class="w-full mt-2 accent-green-500">
-          </label>
-          <button
-            class="bg-[#13ec5b] text-black px-6 py-2 rounded hover:bg-green-400 font-bold shadow-lg shadow-green-500/20">
-            Save Settings
-          </button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+          <!-- System Preferences -->
+          <div class="glass p-6 rounded-xl border border-white/5">
+            <h3 class="font-bold text-lg mb-4 text-blue-400">System Preferences</h3>
+
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <p class="text-white text-sm font-bold">Push Notifications</p>
+                <p class="text-xs text-gray-500">Receive alerts for critical incidents.</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="settNotif" class="sr-only peer" checked>
+                <div
+                  class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600">
+                </div>
+              </label>
+            </div>
+
+            <div class="flex justify-between items-center mb-4">
+              <div>
+                <p class="text-white text-sm font-bold">Dark Mode</p>
+                <p class="text-xs text-gray-500">Enable high-contrast dark theme.</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="settDark" class="sr-only peer" checked onchange="toggleDarkMode(this)">
+                <div
+                  class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                </div>
+              </label>
+            </div>
+
+            <div class="mt-6">
+              <label class="block mb-2 text-sm text-gray-400">Alert Volume</label>
+              <input id="settVol" type="range" class="w-full accent-green-500 rounded-lg cursor-pointer bg-gray-700"
+                value="80">
+            </div>
+          </div>
+
+          <!-- Display -->
+          <div class="glass p-6 rounded-xl border border-white/5">
+            <h3 class="font-bold text-lg mb-4 text-purple-400">Display</h3>
+            <label class="block text-sm text-gray-400 mb-2">Dashboard Density</label>
+            <select id="settDensity" class="w-full glass p-2 rounded text-white border-white/10 bg-black mb-4">
+              <option value="comfort">Comfort (Default)</option>
+              <option value="compact">Compact</option>
+            </select>
+
+            <button onclick="saveSettings()"
+              class="mt-4 w-full bg-[#13ec5b] text-black py-2 rounded font-bold hover:bg-green-400 shadow-lg shadow-green-500/20">
+              Save Preferences
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1039,100 +1098,87 @@
 
       <!-- PROFILE -->
       <section id="profile" class="section hidden flex justify-center">
-        <div class="glass p-8 rounded-2xl max-w-lg w-full relative overflow-hidden">
-          <!-- Decoration -->
-          <div class="absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none">
-          </div>
+        <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
+          <!-- Profile Card -->
+          <div class="glass p-8 rounded-2xl border border-green-500/20 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-bl-full pointer-events-none"></div>
+            <h2 class="text-xl font-bold mb-6">Officer Profile</h2>
 
-          <h2 class="text-xl font-bold mb-6 text-center">Officer Profile</h2>
-
-          <!-- Profile Picture -->
-          <div class="flex flex-col items-center gap-4 mb-6">
-            <div class="relative group">
-              <img id="officerPicPreview" src="https://via.placeholder.com/120"
-                class="w-28 h-28 rounded-full object-cover border-4 border-white/5 group-hover:border-green-400 transition-all duration-300 shadow-xl">
-              <div
-                class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none">
-                <span class="text-xs font-bold text-white">Change</span>
+            <div class="flex items-center gap-6 mb-8">
+              <div class="relative group">
+                <img id="officerPicPreview" src="https://via.placeholder.com/120"
+                  class="w-24 h-24 rounded-full object-cover border-2 border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                <label
+                  class="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                  <span class="text-xs text-white font-bold">Upload</span>
+                  <input type="file" accept="image/*" class="hidden" onchange="updateOfficerPic(event)">
+                </label>
+              </div>
+              <div>
+                <h3 class="text-2xl font-bold text-white">{{ session.user.name }}</h3>
+                <p class="text-green-400 font-mono text-sm">{{ session.user.role|capitalize }}</p>
               </div>
             </div>
-            <input type="file" accept="image/*" onchange="updateOfficerPic(event)"
-              class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-500/10 file:text-green-400 hover:file:bg-green-500/20">
+
+            <div class="space-y-4">
+              <div>
+                <label class="text-xs text-gray-500 ml-1">Full Name</label>
+                <input id="officerProfileName"
+                  class="w-full glass p-3 rounded-lg text-white border-white/10 focus:border-green-500 outline-none"
+                  value="{{ session.user.name }}">
+              </div>
+              <div>
+                <label class="text-xs text-gray-500 ml-1">Email / ID</label>
+                <input class="w-full glass p-3 rounded-lg text-gray-400 border-white/5 bg-black/20"
+                  value="{{ session.user.email }}" readonly>
+              </div>
+              <button onclick="saveOfficerProfile()"
+                class="w-full bg-gradient-to-r from-green-600 to-green-500 text-white py-3 rounded-lg font-bold hover:shadow-lg hover:shadow-green-500/20 mt-2">
+                Update Profile
+              </button>
+            </div>
           </div>
 
-          <!-- Profile Fields -->
-          <div class="space-y-4">
-            <div>
-              <label class="text-sm text-gray-400 ml-1">Username (Email)</label>
-              <input id="officerUsername" class="w-full glass p-3 rounded-lg text-white"
-                value="{{ session.user.email }}" readonly>
-            </div>
+          <!-- Security Card -->
+          <div class="glass p-8 rounded-2xl border border-red-500/10">
+            <h2 class="text-xl font-bold mb-6 text-red-500">Security Center</h2>
 
-            <div>
-              <label class="text-sm text-gray-400 ml-1">Full Name</label>
-              <input id="officerProfileName" class="w-full glass p-3 rounded-lg text-white"
-                value="{{ session.user.name }}" readonly>
-            </div>
+            <div class="space-y-6">
+              <div class="p-4 bg-white/5 rounded-xl border border-white/5">
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="font-bold text-sm">Two-Factor Authentication</h4>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="sr-only peer">
+                    <div
+                      class="w-9 h-5 bg-gray-700 rounded-full peer peer-checked:bg-green-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all">
+                    </div>
+                  </label>
+                </div>
+                <p class="text-xs text-gray-500">Secure your account with 2FA.</p>
+              </div>
 
-            <div>
-              <label class="text-sm text-gray-400 ml-1">Role</label>
-              <input class="w-full glass p-3 rounded-lg text-gray-400" value="{{ session.user.role|capitalize }}"
-                disabled>
-            </div>
+              <div class="p-4 bg-white/5 rounded-xl border border-white/5">
+                <h4 class="font-bold text-sm mb-2">Password</h4>
+                <p class="text-xs text-gray-500 mb-4">Last changed 30 days ago.</p>
+                <button onclick="alert('Password reset link sent to email.')"
+                  class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded transition">
+                  Change Password
+                </button>
+              </div>
 
-            <!-- Save button removed as it only saved to local storage incorrectly -->
-            <!-- Re-enabling for visual completeness even if backend logic is stubbed in this context -->
-            <button onclick="saveOfficerProfile()"
-              class="bg-gradient-to-r from-green-600 to-emerald-700 text-white p-3 rounded-lg w-full font-bold hover:shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all duration-300 mt-4">
-              Save Profile
-            </button>
+              <div class="p-4 bg-red-900/10 rounded-xl border border-red-500/20">
+                <h4 class="font-bold text-sm text-red-400 mb-2">Danger Zone</h4>
+                <button onclick="if(confirm('Deactivate account?')) alert('Contact Admin to deactivate.')"
+                  class="text-xs text-red-400 hover:text-red-300 underline">
+                  Deactivate Account
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- SOS MODAL -->
-      <div id="sosModal"
-        class="fixed inset-0 bg-red-900/40 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
-        <div
-          class="glass p-8 rounded-2xl max-w-md w-full border border-red-500 shadow-[0_0_50px_rgba(220,38,38,0.5)] text-center space-y-6 relative overflow-hidden">
-          <!-- Animated Background -->
-          <div class="absolute inset-0 bg-red-600/10 animate-pulse pointer-events-none"></div>
 
-          <div class="relative z-10">
-            <div
-              class="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_#ef4444]">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" viewBox="0 0 20 20"
-                fill="currentColor">
-                <path fill-rule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clip-rule="evenodd" />
-              </svg>
-            </div>
-
-            <h2 class="text-3xl font-bold text-white mb-2">EMERGENCY SOS</h2>
-            <p class="text-red-200 text-sm mb-6">This will alert Admin and broadcast your live location to all nearby
-              units.</p>
-
-            <div class="grid grid-cols-1 gap-3">
-              <button onclick="triggerSOS('medical')"
-                class="bg-red-600 hover:bg-red-500 text-white p-4 rounded-xl font-bold transition transform hover:scale-105 shadow-lg border border-red-400">
-                🚑 MEDICAL EMERGENCY
-              </button>
-              <button onclick="triggerSOS('backup')"
-                class="bg-orange-600 hover:bg-orange-500 text-white p-4 rounded-xl font-bold transition transform hover:scale-105 shadow-lg border border-orange-400">
-                👮 REQUEST BACKUP
-              </button>
-              <button onclick="triggerSOS('fire')"
-                class="bg-yellow-600 hover:bg-yellow-500 text-white p-4 rounded-xl font-bold transition transform hover:scale-105 shadow-lg border border-yellow-400">
-                🔥 FIRE / HAZARD
-              </button>
-            </div>
-
-            <button onclick="closeSOSModal()"
-              class="mt-6 text-gray-400 hover:text-white underline text-sm">Cancel</button>
-          </div>
-        </div>
-      </div>
 
       <!-- AI FEEDBACK MODAL -->
       <div id="aiFeedbackModal"
@@ -1165,85 +1211,64 @@
             class="mt-4 text-gray-500 text-xs w-full hover:text-white">Cancel</button>
         </div>
       </div>
-      <div
-        class="glass p-8 rounded-2xl max-w-md w-full border border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)] relative">
-        <h2 class="text-2xl font-bold text-white mb-4">File Incident Report</h2>
+      <div id="challanModal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+        <div
+          class="glass p-8 rounded-2xl max-w-md w-full border border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)] relative">
+          <h2 class="text-2xl font-bold text-white mb-4">File Incident Report</h2>
 
-        <div class="space-y-4">
-          <div>
-            <label class="text-sm text-gray-400">Suspect Name / Description</label>
-            <input id="challanName" type="text" placeholder="e.g. Male in Red Shirt"
-              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none">
-          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="text-sm text-gray-400">Suspect Name / Description</label>
+              <input id="challanName" type="text" placeholder="e.g. Male in Red Shirt"
+                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none">
+            </div>
 
-          <div>
-            <label class="text-sm text-gray-400">Incident Type</label>
-            <select id="challanReason"
-              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none bg-black">
-              <option value="Suspicious Activity">Suspicious Activity</option>
-              <option value="Public Disturbance">Public Disturbance/Panic</option>
-              <option value="Unauthorised Objects">Unauthorised Objects (Weapons/Bags)</option>
-              <option value="Trespassing">Trespassing</option>
-              <option value="Loitering">Loitering</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
+            <div>
+              <label class="text-sm text-gray-400">Incident Type</label>
+              <select id="challanReason"
+                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none bg-black">
+                <option value="Suspicious Activity">Suspicious Activity</option>
+                <option value="Public Disturbance">Public Disturbance/Panic</option>
+                <option value="Unauthorised Objects">Unauthorised Objects (Weapons/Bags)</option>
+                <option value="Trespassing">Trespassing</option>
+                <option value="Loitering">Loitering</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
 
-          <div>
-            <label class="text-sm text-gray-400">Evidence (Photo)</label>
-            <input id="challanEvidence" type="file" accept="image/*"
-              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none text-sm">
-          </div>
+            <div>
+              <label class="text-sm text-gray-400">Evidence (Photo)</label>
+              <input id="challanEvidence" type="file" accept="image/*"
+                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none text-sm">
+            </div>
 
-          <!-- HIDDEN AMOUNT FIELD (Not relevant for security report) -->
-          <div class="hidden">
-            <label class="text-sm text-gray-400">Fine Amount (₹)</label>
-            <input id="challanAmount" type="number"
-              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none" value="0">
-          </div>
+            <!-- HIDDEN AMOUNT FIELD (Not relevant for security report) -->
+            <div class="hidden">
+              <label class="text-sm text-gray-400">Fine Amount (₹)</label>
+              <input id="challanAmount" type="number"
+                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none"
+                value="0">
+            </div>
 
-          <div id="challanResult" class="hidden p-3 bg-green-500/20 text-green-400 rounded text-sm break-all"></div>
+            <div id="challanResult" class="hidden p-3 bg-green-500/20 text-green-400 rounded text-sm break-all"></div>
 
-          <div class="flex gap-3 mt-6">
-            <button onclick="closeChallanModal()"
-              class="flex-1 py-2 rounded border border-gray-600 hover:bg-gray-800 text-gray-400">Cancel</button>
-            <button onclick="issueChallan()"
-              class="flex-1 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/30">
-              Submit Report</button>
+            <div class="flex gap-3 mt-6">
+              <button onclick="document.getElementById('challanModal').classList.add('hidden')"
+                class="flex-1 py-2 rounded border border-gray-600 hover:bg-gray-800 text-gray-400">Cancel</button>
+              <button onclick="issueChallan()"
+                class="flex-1 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/30">
+                Submit Report</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- PENDING AI REVIEWS -->
-    <section id="ai_reviews" class="section hidden">
-      <h2 class="section-title">Pending AI Reviews</h2>
-      <div class="glass p-6 rounded-xl">
-        <h3 class="panel-title mb-4 text-orange-400">Automated Violation Alerts</h3>
-        <p class="text-sm text-gray-400 mb-6">Review detections flagged by the AI system. Confirm violations to issue
-          fines or dismiss false positives.</p>
 
-        <div id="reviewContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <!-- Populated by JS -->
-          <p class="text-gray-500 italic">No pending reviews.</p>
-        </div>
-      </div>
-    </section>
 
-    <!-- ACTIVITY LOG -->
-    <section id="activity_log" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Activity Log</h2>
-      <div class="glass p-6 rounded-xl border border-white/5">
-        <h3 class="panel-title mb-4 font-bold text-blue-400">Officer Actions History</h3>
 
-        <div id="activityLogContainer" class="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
-          <p class="text-gray-500 italic text-center py-4">Loading operational logs...</p>
-          <!-- JS will populate -->
-        </div>
-      </div>
-    </section>
 
-    {% include 'component_chatbot.html' %}
+      {% include 'component_chatbot.html' %}
   </main>
 
   <!-- MODALS CONTAINER -->
@@ -1479,8 +1504,7 @@
 
         if (transcript.includes("show gate") || transcript.includes("camera 1")) {
           viewCamera("CAM-01 [GATE]");
-        } else if (transcript.includes("sos") || transcript.includes("emergency")) {
-          openSOSModal();
+
         } else if (transcript.includes("log patrol") || transcript.includes("check in")) {
           openPatrolModal();
         } else if (transcript.includes("incident") || transcript.includes("report")) {
@@ -1579,7 +1603,7 @@
     }
 
     async function saveOfficerProfile() {
-      const name = document.getElementById("officerNameInput").value;
+      const name = document.getElementById("officerProfileName").value; // FIXED: Correct ID
       if (!name) return alert("Name is required");
 
       try {
@@ -1592,6 +1616,7 @@
         if (data.success) {
           alert("Profile saved successfully!");
           document.getElementById("officerName").innerText = name; // Update sidebar
+          document.querySelector('h3.text-2xl').innerText = name; // Update profile card
         } else {
           alert("Error: " + data.error);
         }
@@ -1953,14 +1978,7 @@
 
 
 
-    /* --- SOS SYSTEM --- */
-    function openSOSModal() {
-      document.getElementById('sosModal').classList.remove('hidden');
-    }
 
-    function closeSOSModal() {
-      document.getElementById('sosModal').classList.add('hidden');
-    }
 
     /* ---------- CREATE CASE ---------- */
     function openCreateCaseModal() {
@@ -2223,38 +2241,7 @@
       }
     }
 
-    function triggerSOS(type) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(position => {
-          const { latitude, longitude } = position.coords;
-          sendSOSAlert(type, latitude, longitude);
-        }, error => {
-          console.error("Geo Error:", error);
-          // Send without location if blocked/error
-          sendSOSAlert(type, null, null);
-          alert("Location access denied. Sending alert without coordinates.");
-        });
-      } else {
-        sendSOSAlert(type, null, null);
-        alert("Geolocation not supported. Sending alert without coordinates.");
-      }
-      closeSOSModal();
-    }
 
-    async function sendSOSAlert(type, lat, lng) {
-      try {
-        await fetch('/api/sos_alert', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type, lat, lng })
-        });
-        alert("🚨 SOS SIGNAL SENT! Help is on the way.");
-        loadActivityLogs(); // Log this action
-      } catch (e) {
-        console.error(e);
-        alert("Failed to send SOS! Please try again or call manually.");
-      }
-    }
 
     /* --- QUICK ACTIONS --- */
     async function triggerAction(type) {
@@ -2272,7 +2259,6 @@
           // Custom "Toast" or just a better alert for now
           // Using a mock-toast by reusing an element or simple alert
           alert(`✅ ACTION CONFIRMED\n\n${data.message}\n\nAlert sent to all field officers.`);
-          loadActivityLogs();
         } else {
           alert("Action Failed: " + data.error);
         }
@@ -2282,40 +2268,7 @@
       }
     }
 
-    /* --- ACTIVITY LOGS --- */
-    async function loadActivityLogs() {
-      const container = document.getElementById('activityLogContainer');
-      container.innerHTML = '<p class="text-gray-500 italic text-center py-4">Loading operational logs...</p>';
 
-      try {
-        const res = await fetch('/api/officer_activity');
-        const logs = await res.json();
-
-        if (logs.length === 0) {
-          container.innerHTML = '<p class="text-gray-500 italic text-center py-4">No recent activity recorded.</p>';
-          return;
-        }
-
-        let html = '';
-        logs.forEach(log => {
-          const icon = log.type === 'alert' ? '🛑' : (log.type === 'message' ? '💬' : '📝');
-          html += `
-  <div class="glass p-3 rounded flex items-start gap-3 hover:bg-white/5 transition">
-    <div class="text-xl mt-1">${icon}</div>
-    <div>
-      <p class="text-gray-200 text-sm font-semibold">${log.action}</p>
-      <p class="text-xs text-gray-500 font-mono mt-1">${log.timestamp}</p>
-      ${log.details ? `<p class="text-xs text-gray-400 mt-1 italic">${log.details}</p>` : ''}
-    </div>
-  </div>
-  `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        console.error(e);
-        container.innerHTML = '<p class="text-red-400 italic text-center py-4">Error loading logs.</p>';
-      }
-    }
 
     /* --- SUSPECT SEARCH --- */
     async function searchSuspects() {
@@ -2406,98 +2359,46 @@
         const content = row.getAttribute('data-content').toLowerCase();
         const status = row.getAttribute('data-status');
 
-        const matchesSearch = content.includes(query);
-        const matchesStatus = (statusFilter === 'all') ||
-          (statusFilter === 'resolved' && status === 'Resolved') ||
-          (statusFilter === 'unresolved' && status !== 'Resolved');
+        const matchQuery = content.includes(query);
+        const matchStatus = (statusFilter === 'all') || (status === statusFilter);
 
-        if (matchesSearch && matchesStatus) {
-          row.classList.remove('hidden');
+        if (matchQuery && matchStatus) {
+          row.style.display = '';
         } else {
-          row.classList.add('hidden');
+          row.style.display = 'none';
         }
       });
     }
 
-    /* ---------- AI REVIEWS ---------- */
-    async function loadReviews() {
-      const container = document.getElementById('reviewContainer');
-      container.innerHTML = '<p class="text-gray-500 italic">Loading...</p>';
+    function exportReports() {
+      const rows = document.querySelectorAll("#recordsTableBody tr");
+      let csv = "ID,Time,Source,Message,Severity,Status\n";
 
-      try {
-        const res = await fetch('/api/get_pending_reviews');
-        const reviews = await res.json();
-
-        if (reviews.length === 0) {
-          container.innerHTML = '<p class="text-gray-500 italic">No pending reviews.</p>';
-          return;
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        if (cols.length > 5) {
+          let id = cols[0].innerText.trim();
+          let time = cols[1].innerText.trim();
+          let source = cols[2].innerText.trim();
+          let msg = cols[3].innerText.trim().replace(/,/g, ' ');
+          let sev = cols[4].innerText.trim();
+          let stat = cols[5].innerText.trim();
+          csv += `${id},${time},${source},${msg},${sev},${stat}\n`;
         }
+      });
 
-        container.innerHTML = reviews.map(r => `
-                <div class="bg-black/40 border border-orange-500/30 rounded-xl overflow-hidden shadow-lg">
-                    <div class="relative h-48">
-                        <img src="/${r.file_path}" class="w-full h-full object-cover opacity-80" alt="Evidence">
-                        <div class="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-orange-400 font-mono border border-orange-500/50">
-                            ${Math.round(r.confidence_score * 100)}% Conf.
-                        </div>
-                    </div>
-                    <div class="p-4">
-                        <h4 class="font-bold text-white mb-1">${r.tags}</h4>
-                        <p class="text-xs text-gray-400 mb-2">Zone: <span class="text-gray-200">${r.zone_name || 'N/A'}</span></p>
-                        <p class="text-xs text-gray-500 font-mono mb-4">${r.created_at}</p>
-                        
-                        <div class="flex gap-2">
-                             <button onclick="confirmViolation(${r.id})" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded text-xs font-bold transition">
-                                Confirm & Fine
-                             </button>
-                             <button onclick="dismissViolation(${r.id})" class="flex-1 bg-white/10 hover:bg-white/20 text-gray-300 py-2 rounded text-xs transition">
-                                Dismiss
-                             </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-      } catch (e) { console.error(e); }
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('hidden', '');
+      a.setAttribute('href', url);
+      a.setAttribute('download', 'officer_reports.csv');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      alert("Report Downloaded Successfully!");
     }
 
-    async function confirmViolation(id) {
-      if (!confirm("Confirm this violation?")) return;
-
-      try {
-        const res = await fetch('/api/confirm_violation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, remarks: "Confirmed by Officer via Dashboard" })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert("Violation Confirmed! Opening Challan Form...");
-          loadReviews();
-
-          openChallanModal();
-          document.getElementById('challanName').value = "Unknown (Auto-Detect)";
-          document.getElementById('challanReason').value = "Trespassing";
-          // In a real app, we'd pass the evidence ID to the challan submission
-          document.getElementById('challanResult').innerText = `Linked Evidence ID: ${id}`;
-          document.getElementById('challanResult').classList.remove('hidden');
-        } else {
-          alert("Error: " + data.error);
-        }
-      } catch (e) { alert("Server Error"); }
-    }
-
-    async function dismissViolation(id) {
-      if (!confirm("Dismiss as false positive?")) return;
-      try {
-        await fetch('/api/dismiss_violation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id })
-        });
-        loadReviews();
-      } catch (e) { }
-    }
 
     /* --- NAVIGATION --- */
     function navigateToAlert(message) {
@@ -2522,6 +2423,98 @@
         }
       }
     }
+
+    /* --- NEW FUNCTIONS (REFRESHED) --- */
+
+    // 1. Verify Entry (Visitor Search)
+    async function verifyVisitor() {
+      const name = document.getElementById('vizName').value;
+      const phone = document.getElementById('vizPhone').value;
+      const resDiv = document.getElementById('verifyResult');
+
+      if (!name || !phone) return alert("Please enter both Name and Phone Number");
+
+      resDiv.classList.remove('hidden');
+      resDiv.innerHTML = '<p class="text-white animate-pulse text-center">Searching Database...</p>';
+
+      try {
+        const res = await fetch('/api/verify_visitor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, phone: phone })
+        });
+        const data = await res.json();
+
+        if (data.success && data.status === "granted") {
+          resDiv.innerHTML = `
+                <div class="bg-green-500/20 border border-green-500 p-4 rounded-xl animate-bounce-in flex gap-4 items-center">
+                    <div class="text-4xl">✅</div>
+                    <div class="text-left">
+                        <h3 class="text-xl font-bold text-green-400">ACCESS GRANTED</h3>
+                        <p class="text-white text-sm">Visitor: <span class="font-bold">${data.visitor.name}</span></p>
+                        <p class="text-green-200 text-xs">ID Verified • ${data.visitor.status}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+          resDiv.innerHTML = `
+                <div class="bg-red-500/20 border border-red-500 p-4 rounded-xl animate-shake flex gap-4 items-center">
+                    <div class="text-4xl">🚫</div>
+                    <div class="text-left">
+                        <h3 class="text-xl font-bold text-red-500">ACCESS DENIED</h3>
+                        <p class="text-white text-sm">Visitor: <span class="font-bold">${name}</span></p>
+                        <p class="text-red-200 text-xs">${data.message}</p>
+                    </div>
+                </div>
+            `;
+        }
+      } catch (e) {
+        console.error(e);
+        resDiv.innerHTML = '<p class="text-red-500 text-center">Server Error during verification.</p>';
+      }
+    }
+
+    // 2. Settings Logic
+    function saveSettings() {
+      const notif = document.getElementById('settNotif').checked;
+      const dark = document.getElementById('settDark').checked;
+      const vol = document.getElementById('settVol').value;
+
+      localStorage.setItem('netra_pref_notif', notif);
+      localStorage.setItem('netra_pref_dark', dark);
+      localStorage.setItem('netra_pref_vol', vol);
+
+      alert("Preferences Saved Successfully!");
+    }
+
+    function loadSettings() {
+      if (localStorage.getItem('netra_pref_notif')) {
+        document.getElementById('settNotif').checked = (localStorage.getItem('netra_pref_notif') === 'true');
+      }
+      if (localStorage.getItem('netra_pref_dark')) {
+        const dark = (localStorage.getItem('netra_pref_dark') === 'true');
+        document.getElementById('settDark').checked = dark;
+        toggleDarkMode({ checked: dark });
+      }
+      if (localStorage.getItem('netra_pref_vol')) {
+        document.getElementById('settVol').value = localStorage.getItem('netra_pref_vol');
+      }
+    }
+
+    function toggleDarkMode(checkbox) {
+      // Assuming 'dark' class on HTML or BODY affects some global styles, OR we just set a specific class
+      if (checkbox.checked || (typeof checkbox === 'boolean' && checkbox)) {
+        document.body.classList.add('bg-black');
+        document.body.classList.remove('bg-[#050b07]');
+        // Add specific dark overrides if needed, or rely on existing style logic
+      } else {
+        document.body.classList.remove('bg-black');
+        document.body.classList.add('bg-[#050b07]');
+      }
+    }
+
+    // Load settings on init
+    window.addEventListener('load', loadSettings);
 
   </script>
 

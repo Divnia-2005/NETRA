@@ -137,7 +137,7 @@
                     <!-- Attendee Count -->
                     <div id="count-input-group">
                         <label class="block text-sm text-gray-400 mb-1">Number of Persons</label>
-                        <input type="number" id="person-count" value="1" min="1" onchange="updateTotal()"
+                        <input type="number" id="person-count" value="1" min="1" oninput="updateTotal()"
                             class="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-green-500/50 focus:outline-none">
                         <p id="media-note" class="hidden text-xs text-yellow-500 mt-1">Note: Extra equipment charge
                             applies for > 2 persons.</p>
@@ -229,11 +229,11 @@
             if (currentRole === 'attendee') {
                 total = count * prices.attendee;
             } else if (currentRole === 'volunteer') {
-                total = prices.volunteer; // Fixed deposit
+                total = count * prices.volunteer; // Deposit per person
             } else if (currentRole === 'media') {
-                total = prices.media;
+                total = count * prices.media; // Base per person
                 if (count > 2) {
-                    total += (count - 2) * 800; // Extra charge logic
+                    total += (count - 2) * 800; // Extra equipment charge
                 }
             }
             document.getElementById('total-amount').textContent = total;
@@ -302,6 +302,7 @@
             if (!eventDate) return alert("Please select a date");
 
             const count = parseInt(document.getElementById('person-count').value);
+            const userPhone = document.getElementById('user-phone').value;
 
             // Create Order with Date
             const res = await fetch('/api/create-entry-order', {
@@ -320,6 +321,10 @@
                 "name": "NETRA Events",
                 "description": `${currentRole.toUpperCase()} Entry Payment`,
                 "order_id": data.order_id,
+                "prefill": {
+                    "name": name,
+                    "contact": userPhone
+                },
                 "handler": function (response) {
                     confirmPayment(response, data.amount / 100, count, name);
                 },

@@ -55,7 +55,7 @@ def get_db():
 
 # ---------------- APP CONFIG ----------------
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "super_secret_dev_key_123")
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 # ---------------- RAZORPAY CONFIG ----------------
@@ -797,6 +797,102 @@ def update_alert_status():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# ---------------- NEW ROUTES FOR VERIFICATION Refactor ----------------
+
+@app.route("/api/verify_visitor", methods=["POST"])
+def verify_visitor():
+    if "user" not in session or session["user"]["role"] != "officer":
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    data = request.get_json()
+    name = data.get("name")
+    phone = data.get("phone")
+
+    if not name or not phone:
+        return jsonify({"success": False, "error": "Name and Phone are required"}), 400
+
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    
+    # Check for visitor in public_entries
+    # Exact match for now
+    cur.execute("SELECT * FROM public_entries WHERE name=%s AND phone=%s", (name, phone))
+    visitor = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not visitor:
+        return jsonify({"success": False, "status": "denied", "message": "Visitor not found in database."})
+
+    # Check Approval Status
+    if visitor["status"] == "Approved":
+        return jsonify({
+            "success": True,
+            "status": "granted",
+            "message": "Access Granted",
+            "visitor": {
+                "name": visitor["name"],
+                "role": visitor["role"],
+                "status": "Approved"
+            }
+        })
+    elif visitor["status"] == "Entered":
+        return jsonify({"success": False, "status": "flagged", "message": "Visitor already marked as Entered."})
+    else:
+        # Pending or other status
+        return jsonify({"success": False, "status": "denied", "message": "Visitor found but NOT Approved by Admin."})
+
+@app.route("/api/update_profile", methods=["POST"])
+def update_profile():
+    if "user" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    new_name = data.get("name")
+    
+    if not new_name:
+        return jsonify({"success": False, "error": "Name is required"}), 400
+
+    user_id = session["user"]["id"]
+    
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET name=%s WHERE id=%s", (new_name, user_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Update session
+        session["user"]["name"] = new_name
+        session.modified = True
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/approve_public_entry", methods=["POST"])
+def approve_public_entry():
+    if "user" not in session or session["user"]["role"] != "admin":
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+        
+    data = request.get_json()
+    entry_id = data.get("id")
+    
+    if not entry_id:
+        return jsonify({"success": False, "error": "ID required"}), 400
+        
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE public_entries SET status='Approved' WHERE id=%s", (entry_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route("/api/heatmap_data")
 def heatmap_data():
     if "user" not in session:
@@ -1096,34 +1192,7 @@ def export_reports():
         download_name=f'netra_reports_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
 
-@app.route("/api/update_profile", methods=["POST"])
-def update_profile():
-    if "user" not in session:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    data = request.get_json()
-    user_id = session["user"]["id"]
-    new_name = data.get("name")
-    
-    # We could allow updating other fields, but let's start with name
-    if not new_name:
-        return jsonify({"success": False, "error": "Name is required"}), 400
-        
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("UPDATE users SET name=%s WHERE id=%s", (new_name, user_id))
-        conn.commit()
-        cur.close()
-        conn.close()
-        
-        # Update session
-        session["user"]["name"] = new_name
-        session.modified = True
-        
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route("/api/update_user_status", methods=["POST"])
 def update_user_status():
