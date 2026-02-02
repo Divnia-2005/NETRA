@@ -1,173 +1,175 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Create Account — NETRA</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-        <style>
-            body {
-                background-image: url('{{ url_for("static", filename="images/registerpg.jpg") }}');
-                background-size: cover;
-                background-position: center;
-                background-attachment: fixed;
-                min-height: 100vh;
-                margin: 0;
-                padding: 0;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            
-            .auth-container {
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: rgba(0, 0, 0, 0.5);
-                padding: 20px;
-            }
-            
-            .auth-box {
-                background: rgba(18, 18, 18, 0.95);
-                padding: 50px;
-                border-radius: 15px;
-                width: 100%;
-                max-width: 400px;
-                box-shadow: 0 0 40px rgba(13, 202, 240, 0.2), 0 0 80px rgba(0, 0, 0, 0.7);
-                border: 1px solid rgba(13, 202, 240, 0.3);
-            }
-            
-            .auth-box h2 {
-                font-size: 28px;
-                margin: 0 0 10px 0;
-                color: #fff;
-                font-weight: 700;
-            }
-            
-            .auth-subtitle {
-                color: #b0b0b0;
-                margin-bottom: 30px;
-                font-size: 14px;
-            }
-            
-            .alert {
-                padding: 12px;
-                margin-bottom: 20px;
-                border-radius: 8px;
-                font-size: 14px;
-            }
-            
-            .alert-success {
-                background: rgba(40, 167, 69, 0.2);
-                color: #28a745;
-                border: 1px solid rgba(40, 167, 69, 0.5);
-            }
-            
-            .alert-danger {
-                background: rgba(220, 53, 69, 0.2);
-                color: #dc3545;
-                border: 1px solid rgba(220, 53, 69, 0.5);
-            }
-            
-            .auth-form {
-                margin-bottom: 20px;
-            }
-            
-            .form-group {
-                margin-bottom: 20px;
-            }
-            
-            .form-group label {
-                display: block;
-                margin-bottom: 8px;
-                color: #e0e0e0;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            
-            .form-group input,
-            .form-group select {
-                width: 100%;
-                padding: 12px;
-                background-color: #1f1f1f;
-                border: 1px solid #333;
-                border-radius: 8px;
-                color: #fff;
-                font-size: 14px;
-                box-sizing: border-box;
-                transition: all 0.3s ease;
-            }
-            
-            .form-group input:focus,
-            .form-group select:focus {
-                outline: none;
-                background-color: #1f1f1f;
-                border-color: #0dcaf0;
-                box-shadow: 0 0 12px rgba(13, 202, 240, 0.4);
-            }
-            
-            .form-group input::placeholder {
-                color: #666;
-            }
-            
-            .btn-block {
-                width: 100%;
-                padding: 12px;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                margin: 10px 0;
-            }
-            
-            .btn-primary {
-                background-color: #0dcaf0;
-                color: #000;
-            }
-            
-            .btn-primary:hover {
-                background-color: #0bb3d6;
-                transform: translateY(-2px);
-                box-shadow: 0 8px 20px rgba(13, 202, 240, 0.4);
-            }
-            
-            .btn-google {
-                background: rgba(255, 255, 255, 0.1);
-                color: #fff;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-            }
-            
-            .btn-google:hover {
-                background: rgba(255, 255, 255, 0.2);
-                box-shadow: 0 8px 20px rgba(255, 255, 255, 0.1);
-            }
-            
-            .divider {
-                text-align: center;
-                margin: 20px 0;
-                color: #666;
-                font-size: 14px;
-            }
-            
-            .auth-footer {
-                text-align: center;
-                color: #999;
-                font-size: 14px;
-                margin-top: 20px;
-            }
-            
-            .auth-footer a {
-                color: #0dcaf0;
-                text-decoration: none;
-                font-weight: 600;
-            }
-            
-            .auth-footer a:hover {
-                text-decoration: underline;
-            }
-        </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Create Account — NETRA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            background-image: url('{{ url_for("static", filename="images/registerpg.jpg") }}');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+        }
+
+        .auth-box {
+            background: rgba(18, 18, 18, 0.95);
+            padding: 50px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 0 40px rgba(13, 202, 240, 0.2), 0 0 80px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(13, 202, 240, 0.3);
+        }
+
+        .auth-box h2 {
+            font-size: 28px;
+            margin: 0 0 10px 0;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .auth-subtitle {
+            color: #b0b0b0;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .alert {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.5);
+        }
+
+        .alert-danger {
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.5);
+        }
+
+        .auth-form {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            background-color: #1f1f1f;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            background-color: #1f1f1f;
+            border-color: #0dcaf0;
+            box-shadow: 0 0 12px rgba(13, 202, 240, 0.4);
+        }
+
+        .form-group input::placeholder {
+            color: #666;
+        }
+
+        .btn-block {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+        }
+
+        .btn-primary {
+            background-color: #0dcaf0;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background-color: #0bb3d6;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(13, 202, 240, 0.4);
+        }
+
+        .btn-google {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-google:hover {
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 20px rgba(255, 255, 255, 0.1);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .auth-footer {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .auth-footer a {
+            color: #0dcaf0;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
+
 <body>
     <div class="auth-container">
         <div class="auth-box">
@@ -178,6 +180,7 @@
                 <div class="form-group">
                     <label for="name">Full Name</label>
                     <input id="name" name="name" type="text" placeholder="John Doe" required>
+                    <div id="name-error" style="font-size: 12px; margin-top: 5px; color: #dc3545; height: 15px;"></div>
                 </div>
 
                 <div class="form-group">
@@ -195,14 +198,127 @@
 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input id="password" name="password" type="password" placeholder="At least 6 characters" required>
+                    <input id="password" name="password" type="password"
+                        placeholder="At least 8 characters, 1 number, 1 special char" required>
+                    <div id="password-strength" style="font-size: 12px; margin-top: 5px; height: 15px;"></div>
                 </div>
 
-                <button class="btn-primary btn-block" type="submit">Create Account</button>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input id="confirm_password" name="confirm_password" type="password" placeholder="Re-enter password"
+                        required>
+                    <div id="password-match" style="font-size: 12px; margin-top: 5px; color: #dc3545;"></div>
+                </div>
+
+                <button id="register-btn" class="btn-primary btn-block" type="submit">Create Account</button>
             </form>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const nameInput = document.getElementById('name');
+                    const nameErrorDiv = document.getElementById('name-error');
+                    const emailInput = document.getElementById('email');
+                    const passwordInput = document.getElementById('password');
+                    const confirmInput = document.getElementById('confirm_password');
+                    const registerBtn = document.getElementById('register-btn');
+                    const strengthDiv = document.getElementById('password-strength');
+                    const matchDiv = document.getElementById('password-match');
+
+                    function validateName(name) {
+                        // Allow letters and spaces only, explicitly disallow standard slashes/backslashes
+                        const re = /^[a-zA-Z\s]+$/;
+                        return re.test(name) && name.trim().length > 0 && !/[\/\\]/.test(name);
+                    }
+
+                    function validateEmail(email) {
+                        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        return re.test(email);
+                    }
+
+                    function validatePassword(password) {
+                        // At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+                        const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+                        return re.test(password);
+                    }
+
+                    function checkForm() {
+                        const isNameValid = validateName(nameInput.value);
+                        const isEmailValid = validateEmail(emailInput.value);
+                        const isPasswordValid = validatePassword(passwordInput.value);
+                        const isMatch = passwordInput.value === confirmInput.value && passwordInput.value !== '';
+
+                        if (isNameValid && isEmailValid && isPasswordValid && isMatch) {
+                            registerBtn.disabled = false;
+                            registerBtn.style.opacity = 1;
+                            registerBtn.style.cursor = 'pointer';
+                        } else {
+                            registerBtn.disabled = true;
+                            registerBtn.style.opacity = 0.6;
+                            registerBtn.style.cursor = 'not-allowed';
+                        }
+                    }
+
+                    nameInput.addEventListener('input', function () {
+                        if (this.value && !validateName(this.value)) {
+                            this.style.borderColor = '#dc3545';
+                            nameErrorDiv.textContent = 'Letters and spaces only';
+                        } else {
+                            this.style.borderColor = '#28a745';
+                            nameErrorDiv.textContent = '';
+                        }
+                        checkForm();
+                    });
+
+                    emailInput.addEventListener('input', function () {
+                        if (this.value && !validateEmail(this.value)) {
+                            this.style.borderColor = '#dc3545';
+                        } else {
+                            this.style.borderColor = '#333';
+                        }
+                        checkForm();
+                    });
+
+                    passwordInput.addEventListener('input', function () {
+                        const val = this.value;
+                        if (!val) {
+                            strengthDiv.textContent = '';
+                            return;
+                        }
+
+                        if (validatePassword(val)) {
+                            strengthDiv.textContent = 'Strong password';
+                            strengthDiv.style.color = '#28a745';
+                            this.style.borderColor = '#28a745';
+                        } else {
+                            strengthDiv.textContent = 'Weak: Need 8+ chars, Upper, Lower, Number, Special';
+                            strengthDiv.style.color = '#ffc107';
+                            this.style.borderColor = '#ffc107';
+                        }
+                        checkForm();
+
+                        // Re-check match if confirm field is filled
+                        if (confirmInput.value) confirmInput.dispatchEvent(new Event('input'));
+                    });
+
+                    confirmInput.addEventListener('input', function () {
+                        if (this.value !== passwordInput.value) {
+                            matchDiv.textContent = 'Passwords do not match';
+                            this.style.borderColor = '#dc3545';
+                        } else {
+                            matchDiv.textContent = '';
+                            this.style.borderColor = '#28a745';
+                        }
+                        checkForm();
+                    });
+
+                    // Initial check
+                    checkForm();
+                });
+            </script>
 
             <p class="auth-footer">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
         </div>
     </div>
 </body>
+
 </html>

@@ -237,6 +237,7 @@
       <button onclick="showSection('overview', this)" class="nav-btn active" data-i18n="overview">Overview</button>
       <button onclick="showSection('map', this)" class="nav-btn" data-i18n="tactical_map">Tactical Map</button>
       <button onclick="showSection('management', this)" class="nav-btn" data-i18n="management">Management</button>
+      <button onclick="showSection('public_entries', this)" class="nav-btn">Public Entries</button>
       <button onclick="showSection('alerts', this)" class="nav-btn" data-i18n="alerts">Alerts</button>
       <button onclick="showSection('messages', this)" class="nav-btn" data-i18n="messages">Messages</button>
       <button onclick="showSection('monitoring', this)" class="nav-btn" data-i18n="monitoring">Live Monitoring</button>
@@ -394,6 +395,11 @@
             class="glass hover:bg-white/10 text-blue-400 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
             <span class="text-xl group-hover:scale-110 transition-transform">📄</span> <span class="text-sm font-medium"
               data-i18n="global_reports">Global Reports</span>
+          </button>
+          <button onclick="triggerSimulation()"
+            class="glass hover:bg-red-900/20 text-red-500 border border-red-500/20 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
+            <span class="text-xl group-hover:scale-110 transition-transform animate-pulse">🚨</span> <span
+              class="text-sm font-bold">Simulate Intrusion</span>
           </button>
         </div>
       </div>
@@ -644,48 +650,9 @@
     <!-- RESTRICTED ZONES SECTION -->
     <section id="restricted_zones" class="section hidden">
       <h2 class="section-title">Restricted Zone Management</h2>
+      <!-- ... (existing content) ... -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Add Zone Form -->
-        <div class="glass p-6 rounded-xl border border-red-500/20">
-          <h3 class="panel-title mb-4 font-bold text-red-400">Define New Zone</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="text-sm text-gray-400">Zone Name / Location</label>
-              <input id="zoneName" type="text" placeholder="e.g. Server Room A"
-                class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none">
-            </div>
-            <div>
-              <label class="text-sm text-gray-400">Coordinates / Cam ID</label>
-              <input id="zoneCoords" type="text" placeholder="e.g. CAM-01, 28.12,77.45"
-                class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-sm text-gray-400">Start Time (24h)</label>
-                <input id="zoneStart" type="time"
-                  class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none bg-black">
-              </div>
-              <div>
-                <label class="text-sm text-gray-400">End Time (24h)</label>
-                <input id="zoneEnd" type="time"
-                  class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none bg-black">
-              </div>
-            </div>
-            <div>
-              <label class="text-sm text-gray-400">Violation Type</label>
-              <select id="zoneType"
-                class="w-full glass p-2 rounded text-white border-white/10 focus:border-red-500 outline-none bg-black">
-                <option value="Trespassing">Trespassing</option>
-                <option value="Restricted Entry">Restricted Entry</option>
-                <option value="No Loitering">No Loitering</option>
-              </select>
-            </div>
-            <button onclick="addZone()"
-              class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded shadow-lg shadow-red-500/30">Add
-              Zone Rule</button>
-          </div>
-        </div>
-
+        <!-- ... (existing content) ... -->
         <!-- Zone List -->
         <div class="glass p-6 rounded-xl border border-white/5">
           <h3 class="panel-title mb-4 text-gray-300">Active Restricted Zones</h3>
@@ -693,6 +660,88 @@
             <!-- Populated by JS -->
             <p class="text-gray-500 italic text-center py-4">Loading zones...</p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEW: PUBLIC ENTRIES SECTION -->
+    <section id="public_entries" class="section hidden">
+      <h1 class="section-title">Public Entry Logistics</h1>
+
+      <!-- Stats Row -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="glass p-6 rounded-xl border-l-4 border-green-500">
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Revenue</h3>
+          <p class="text-3xl font-bold text-white">₹{{ entry_stats.total_revenue }}</p>
+        </div>
+        <div class="glass p-6 rounded-xl border-l-4 border-blue-500">
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Headcount</h3>
+          <p class="text-3xl font-bold text-white">{{ entry_stats.total_heads }}</p>
+        </div>
+        <div class="glass p-6 rounded-xl border-l-4 border-purple-500">
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Latest Entry</h3>
+          <p class="text-xl font-bold text-white truncate">
+            {% if public_entries %}
+            {{ public_entries[0].name }} ({{ public_entries[0].role }})
+            {% else %}
+            --
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <!-- Entries Table -->
+      <div class="glass p-6 rounded-xl border border-white/5">
+        <h3 class="panel-title mb-6 font-bold text-emerald-400">Entry Logs</h3>
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-sm text-left">
+            <thead>
+              <tr class="text-gray-400 border-b border-gray-700">
+                <th class="py-3 px-4">Time</th>
+                <th class="py-3 px-4">Name</th>
+                <th class="py-3 px-4">Role</th>
+                <th class="py-3 px-4">Phone</th>
+                <th class="py-3 px-4">Count</th>
+                <th class="py-3 px-4">Amount</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4">Payment ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in public_entries %}
+              <tr class="border-b border-gray-800 hover:bg-white/5 transition">
+                <td class="py-3 px-4 text-gray-400 text-xs">{{ entry.created_at }}</td>
+                <td class="py-3 px-4 font-bold">{{ entry.name }}</td>
+                <td class="py-3 px-4 uppercase text-xs">
+                  <span class="px-2 py-1 rounded border border-gray-600 
+                    {% if entry.role == 'attendee' %}text-blue-400 border-blue-500/30{% endif %}
+                    {% if entry.role == 'media' %}text-purple-400 border-purple-500/30{% endif %}
+                    {% if entry.role == 'volunteer' %}text-orange-400 border-orange-500/30{% endif %}">
+                    {{ entry.role }}
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-gray-400">{{ entry.phone }}</td>
+                <td class="py-3 px-4">{{ entry.count }}</td>
+                <td class="py-3 px-4 text-green-400 font-mono">₹{{ entry.amount }}</td>
+                <td class="py-3 px-4">
+                  {% if entry.status == 'Entered' %}
+                  <span class="text-green-500 font-bold text-xs">Entered</span>
+                  {% elif entry.status == 'Paid' %}
+                  <span class="text-blue-400 font-bold text-xs">Paid</span>
+                  {% else %}
+                  <span class="text-gray-500 text-xs">{{ entry.status }}</span>
+                  {% endif %}
+                </td>
+                <td class="py-3 px-4 text-xs text-gray-500 font-mono">{{ entry.payment_id }}</td>
+              </tr>
+              {% endfor %}
+              {% if not public_entries %}
+              <tr>
+                <td colspan="8" class="py-8 text-center text-gray-500 italic">No public entries recorded.</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -1600,6 +1649,28 @@
         console.error(err);
         alert("Failed to send message.");
       }
+    }
+
+    async function triggerSimulation() {
+      if (!confirm("⚠️ TEST MODE: This will generate a CRITICAL ALERT in the system. Proceed?")) return;
+
+      try {
+        const res = await fetch('/api/trigger_simulation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'intrusion' })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert("🚨 SIMULATION TRIGGERED!\n\nAlert created: " + data.alert);
+          // Switch to alerts section to see it
+          showSection('alerts');
+          window.location.reload(); // Reload to fetch new alert from DB
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) { console.error(e); }
     }
 
     /* ---------- LOAD DATA ---------- */

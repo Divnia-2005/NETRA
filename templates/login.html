@@ -260,8 +260,34 @@
 
                 </div>
 
-                <button class="btn-primary" type="submit">Login</button>
+                <button id="login-btn" class="btn-primary" type="submit">Login</button>
             </form>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const emailInput = document.getElementById('email');
+                    const loginBtn = document.getElementById('login-btn');
+
+                    function validateEmail(email) {
+                        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        return re.test(email);
+                    }
+
+                    emailInput.addEventListener('input', function () {
+                        if (this.value && !validateEmail(this.value)) {
+                            this.style.borderColor = '#dc3545';
+                            loginBtn.disabled = true;
+                            loginBtn.style.opacity = 0.6;
+                            loginBtn.style.cursor = 'not-allowed';
+                        } else {
+                            this.style.borderColor = '#333';
+                            loginBtn.disabled = false;
+                            loginBtn.style.opacity = 1;
+                            loginBtn.style.cursor = 'pointer';
+                        }
+                    });
+                });
+            </script>
 
             <div class="divider"><span>OR</span></div>
 

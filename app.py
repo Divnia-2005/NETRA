@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response
+import uuid
+from werkzeug.security import generate_password_hash, check_password_hash
 import razorpay
 import openpyxl
 from io import BytesIO
@@ -12,10 +14,11 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import re
 
 # Load credential.env from same directory
 env_path = Path(__file__).resolve().parent / "credential.env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=True) # Force reload
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
@@ -23,13 +26,32 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
 
 # ---------------- DATABASE CONNECTION ----------------
+
+# ---------------- DATABASE CONNECTION ----------------
 def get_db():
-    return mysql.connector.connect(
+    conn = mysql.connector.connect(
         host="localhost",
         user="root",
         password="",
         database="Netra"
     )
+    # Lazy Migration: Ensure event_date exists
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT event_date FROM public_entries LIMIT 1")
+        cur.fetchall()
+        cur.close()
+    except:
+        try:
+             cur = conn.cursor()
+             cur.execute("ALTER TABLE public_entries ADD COLUMN event_date VARCHAR(20) DEFAULT NULL")
+             conn.commit()
+             cur.close()
+             print("DEBUG: Added event_date column to public_entries")
+        except Exception as e:
+             print(f"Migration Warning: {e}")
+             
+    return conn
 
 # ---------------- APP CONFIG ----------------
 app = Flask(__name__)
@@ -39,7 +61,13 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 # ---------------- RAZORPAY CONFIG ----------------
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder") 
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "secret_placeholder")
+
+print(f"DEBUG: Loaded Razorpay Key: {RAZORPAY_KEY_ID}") # Verify loading
+
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
+# ---------------- MOCK DATA STORE ----------------
+MOCK_PATROL_LOGS = []  # List of {user_id, name, location, notes, time}
 
 # ---------------- ROUTES ----------------
 @app.route("/")
@@ -60,7 +88,28 @@ def register():
         name = request.form["name"]
         email = request.form["email"]
         password = request.form["password"]
+        confirm_password = request.form.get("confirm_password")
         role = request.form["role"]
+
+        # Backend Validations
+        if not name or not email or not password or not role:
+             return render_template("register.html", error="All fields are required")
+
+        # Name Validation (Letters and Spaces only)
+        if not re.match(r"^[a-zA-Z\s]+$", name) or not name.strip():
+             return render_template("register.html", error="Name must contain only letters and spaces")
+
+        # Email Validation
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+             return render_template("register.html", error="Invalid email format")
+
+        # Password Complexity
+        if len(password) < 8 or not re.search(r"[a-z]", password) or not re.search(r"[A-Z]", password) or not re.search(r"\d", password) or not re.search(r"[@$!%*?&]", password):
+             return render_template("register.html", error="Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character")
+
+        # Password Match
+        if password != confirm_password:
+             return render_template("register.html", error="Passwords do not match")
 
         conn = get_db()
         cur = conn.cursor()
@@ -73,9 +122,11 @@ def register():
         # Determine status: Admin -> approved (or pending if strict), Officer -> pending
         status = 'pending' if role == 'officer' else 'approved'
 
+        hashed_password = generate_password_hash(password)
+
         cur.execute(
             "INSERT INTO users (name, email, password, role, status) VALUES (%s,%s,%s,%s,%s)",
-            (name, email, password, role, status)
+            (name, email, hashed_password, role, status)
         )
         conn.commit()
         cur.close()
@@ -92,17 +143,39 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
 
+        if not email or not password:
+             return render_template("login.html", error="Email and password are required")
+        
+        email = email.strip()
+
         conn = get_db()
         cur = conn.cursor(dictionary=True)
-        cur.execute(
-            "SELECT * FROM users WHERE email=%s AND password=%s",
-            (email, password)
-        )
+        # Fetch user first, then verify password
+        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
         user = cur.fetchone()
+        
+        # Verify Password (Hash or Lazy Migration)
+        valid_password = False
+        if user:
+            if check_password_hash(user['password'], password):
+                valid_password = True
+            elif user['password'] == password:
+                # Lazy Migration: It was plain text, update to hash now
+                new_hash = generate_password_hash(password)
+                # Need a fresh cursor/connection to update if previous fetch locked? No, usually fine.
+                # But let's be safe and just run update.
+                update_cur = conn.cursor()
+                update_cur.execute("UPDATE users SET password=%s WHERE id=%s", (new_hash, user['id']))
+                conn.commit()
+                update_cur.close()
+                valid_password = True
+                print(f"Migrated password for user {user['email']} to hash.")
+        
         cur.close()
         conn.close()
 
-        if not user:
+        if not user or not valid_password:
+
             return render_template("login.html", error="Invalid email or password")
 
         # Check Approval Status
@@ -145,9 +218,15 @@ def google_callback():
             GOOGLE_CLIENT_ID
         )
 
+        name = idinfo["name"]
+        
+        # Validate Name from Google
+        if not re.match(r"^[a-zA-Z\s]+$", name) or not name.strip():
+             return jsonify({"success": False, "error": "Google Account Name invalid. Name must contain only letters and spaces."}), 400
+
         user = {
             "google_id": idinfo["sub"],
-            "name": idinfo["name"],
+            "name": name,
             "email": idinfo["email"],
             "role": "officer"
         }
@@ -315,14 +394,40 @@ def reset_password():
         pwd = request.form["password"]
         cpwd = request.form["confirm_password"]
 
+        # 1. Check for empty or whitespace
+        if not pwd or not pwd.strip():
+             return render_template("reset_password.html", error="Password cannot be empty or spaces")
+
+        # 2. Check Match
         if pwd != cpwd:
             return render_template("reset_password.html", error="Passwords do not match")
 
+        # 3. Check Complexity
+        if len(pwd) < 8 or not re.search(r"[a-z]", pwd) or not re.search(r"[A-Z]", pwd) or not re.search(r"\d", pwd) or not re.search(r"[@$!%*?&]", pwd):
+             return render_template("reset_password.html", error="Password must be 8+ chars, with upper, lower, number, and special char")
+
+        email = session["reset_email"]
         conn = get_db()
-        cur = conn.cursor()
+        cur = conn.cursor(dictionary=True) # Use dictionary cursor for easy access
+        
+        # 4. Fetch old password to check reuse (assuming plain text for now as per context, usually hashed)
+        # 4. Fetch old password to check reuse
+        cur.execute("SELECT password FROM users WHERE email=%s", (email,))
+        user_row = cur.fetchone()
+        
+        # Check against Hash OR Plain text
+        if user_row:
+             stored_pw = user_row['password']
+             if check_password_hash(stored_pw, pwd) or stored_pw == pwd:
+                 cur.close()
+                 conn.close()
+                 return render_template("reset_password.html", error="Cannot reuse your old password")
+
+        # Update Password with Hash
+        hashed_pwd = generate_password_hash(pwd)
         cur.execute(
             "UPDATE users SET password=%s, reset_otp=NULL, otp_expiry=NULL WHERE email=%s",
-            (pwd, session["reset_email"])
+            (hashed_pwd, email)
         )
         conn.commit()
         cur.close()
@@ -345,6 +450,64 @@ def send_otp_email(to_email, otp):
     server.login(SMTP_EMAIL, SMTP_PASSWORD)
     server.send_message(msg)
     server.quit()
+
+@app.route("/api/verify-ticket", methods=["POST"])
+def verify_ticket():
+    if "user" not in session or session["user"]["role"] != "officer":
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+        
+    data = request.get_json()
+    ticket_id = data.get("ticket_id")
+    
+    if not ticket_id:
+        return jsonify({"success": False, "error": "Ticket ID required"}), 400
+        
+    # --- FIX FOR SCANNED URLS ---
+    # If scanner sends "http://localhost:5000/ticket/uuid-...", extract the uuid
+    if "/ticket/" in ticket_id:
+        try:
+            ticket_id = ticket_id.split("/ticket/")[-1].split("?")[0]
+        except:
+            pass # Keep original if split fails
+
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    
+    cur.execute("SELECT * FROM public_entries WHERE qr_code_path=%s", (ticket_id,))
+    entry = cur.fetchone()
+    
+    if not entry:
+        cur.close()
+        conn.close()
+        return jsonify({"success": False, "status": "invalid", "message": "Ticket not found"})
+        
+    if entry["status"] == "Entered":
+        cur.close()
+        conn.close()
+        return jsonify({
+            "success": True, 
+            "status": "used", 
+            "message": "Ticket already used",
+            "details": entry
+        })
+        
+    # Mark as Entered
+    cur.execute("UPDATE public_entries SET status='Entered' WHERE id=%s", (entry["id"],))
+    conn.commit()
+    
+    # Reload entry to get updated status
+    entry["status"] = "Entered"
+    
+    cur.close()
+    conn.close()
+    
+    return jsonify({
+        "success": True, 
+        "status": "valid", 
+        "message": "Entry Approved", 
+        "details": entry
+    })
+
 # ---------------- DASHBOARDS ----------------
 @app.route("/dashboard_admin")
 def dashboard_admin():
@@ -383,6 +546,15 @@ def dashboard_admin():
     # Fetch resolved alerts (history)
     cur.execute("SELECT * FROM alerts WHERE status = 'Resolved' ORDER BY created_at DESC LIMIT 50")
     resolved_alerts = cur.fetchall()
+    
+    # --- NEW: Fetch Public Entries & Stats ---
+    cur.execute("SELECT * FROM public_entries ORDER BY created_at DESC")
+    public_entries = cur.fetchall()
+    
+    cur.execute("SELECT SUM(amount) as total_revenue, SUM(count) as total_heads FROM public_entries WHERE status != 'Pending'")
+    entry_stats = cur.fetchone()
+    if not entry_stats['total_revenue']: entry_stats['total_revenue'] = 0
+    if not entry_stats['total_heads']: entry_stats['total_heads'] = 0
 
     # --- DASHBOARD STATS ---
     cur.execute("SELECT COUNT(*) as cnt FROM users")
@@ -395,7 +567,7 @@ def dashboard_admin():
     total_cases = cur.fetchone()['cnt']
     
     pending_count = len(pending_users)
-    resolved_count = len(resolved_alerts) # Approximation based on fetched limit, better to count properly if large
+    resolved_count_total = 0 # Placeholder if needed
     
     cur.execute("SELECT COUNT(*) as cnt FROM alerts WHERE status='Resolved'")
     resolved_count_total = cur.fetchone()['cnt']
@@ -435,6 +607,7 @@ def dashboard_admin():
     
     cur.execute("SELECT COUNT(*) as total, SUM(amount) as revenue FROM challans")
     fine_totals = cur.fetchone()
+    if not fine_totals['revenue']: fine_totals['revenue'] = 0
     
     cur.execute("SELECT COUNT(*) as pending FROM challans WHERE status!='Paid'")
     pending_fines = cur.fetchone()
@@ -474,7 +647,9 @@ def dashboard_admin():
                            activity_feed=activity_feed,
                            all_fines=all_fines,
                            fines_stats=fines_stats,
-                           all_cases=all_cases)
+                           all_cases=all_cases,
+                           public_entries=public_entries,
+                           entry_stats=entry_stats)
 
 @app.route("/dashboard_officer")
 def dashboard_officer():
@@ -641,10 +816,197 @@ def heatmap_data():
         lat_offset = (random.random() - 0.5) * 0.04
         lng_offset = (random.random() - 0.5) * 0.04
         intensity = random.uniform(0.5, 1.0) # Higher minimum intensity
-        
         heatmap_points.append([base_lat + lat_offset, base_lng + lng_offset, intensity])
         
     return jsonify(heatmap_points)
+
+# ---------------- PUBLIC ENTRY SYSTEM ----------------
+@app.route("/public-entry")
+def public_entry():
+    return render_template("public_entry.html", key_id=RAZORPAY_KEY_ID)
+
+import requests
+
+@app.route("/api/send-phone-otp", methods=["POST"])
+def send_phone_otp():
+    data = request.get_json()
+    phone = data.get("phone")
+    
+    if not phone:
+        return jsonify({"success": False, "error": "Phone number required"}), 400
+
+    # Generate OTP
+    otp = str(random.randint(1000, 9999))
+    session["phone_otp"] = otp
+    session["phone_number"] = phone
+    
+    # Fast2SMS Integration
+    api_key = "gG0p14eM3Un8mwaYJ5yqTcb2lXLAzvoKtONV9xR6BCShEHfPZ7Ov6iy5pHueWGCohBqfxKbnclrazAYZ"
+    url = "https://www.fast2sms.com/dev/bulkV2"
+    payload = f"variables_values={otp}&route=otp&numbers={phone}"
+    headers = {
+        'authorization': api_key,
+        'Content-Type': "application/x-www-form-urlencoded",
+        'Cache-Control': "no-cache",
+    }
+    
+    try:
+        response = requests.request("POST", url, data=payload, headers=headers)
+        print(f"\n[Fast2SMS RESPONSE] Status: {response.status_code}, Body: {response.text}\n")
+        
+        resp_json = response.json()
+        if resp_json.get("return") == False:
+            # API returned error (e.g. Invalid Number / DLT)
+            print(f"------------ FALLBACK OTP (API ERROR): {otp} ------------")
+            return jsonify({
+                "success": True, 
+                "message": f"OTP Sent (Dev Mode: {otp})", 
+                "debug_otp": otp
+            })
+
+        return jsonify({
+            "success": True, 
+            "message": "OTP sent to phone via SMS (Dev Mode Active)",
+            "debug_otp": otp
+        })
+    except Exception as e:
+        print(f"SMS Failed: {e}")
+        print(f"------------ FALLBACK OTP (EXCEPTION): {otp} ------------")
+        return jsonify({
+            "success": True, 
+            "message": f"dOTP Sent (Fallback: {otp})",
+            "debug_otp": otp
+        })
+
+@app.route("/api/verify-phone-otp", methods=["POST"])
+def verify_phone_otp():
+    data = request.get_json()
+    otp = data.get("otp")
+    
+    if "phone_otp" not in session:
+        return jsonify({"success": False, "error": "OTP expired or not requested"}), 400
+        
+    if otp == session["phone_otp"]:
+        session["phone_verified"] = True
+        return jsonify({"success": True})
+    
+    return jsonify({"success": False, "error": "Invalid OTP"}), 400
+
+@app.route("/api/create-entry-order", methods=["POST"])
+def create_entry_order():
+    if not session.get("phone_verified"):
+        return jsonify({"success": False, "error": "Phone verification required needed"}), 403
+        
+    data = request.get_json()
+    role = data.get("role")
+    count = int(data.get("count", 1))
+    event_date = data.get("event_date")
+    
+    session['temp_event_date'] = event_date # Store for confirmation
+
+    
+    amount = 0
+    if role == "attendee":
+        amount = 500 * count # 500 per person
+    elif role == "volunteer":
+        amount = 1000 # Fix deposit
+    elif role == "media":
+        amount = 1500 # Base fee
+        if count > 2:
+             amount += (count - 2) * 800 # Extra chrge for >2 crew
+    
+    try:
+        order_amount = int(amount * 100) # Paise
+        order_currency = "INR"
+        order_receipt = f"ENTRY-{random.randint(1000,9999)}"
+        
+        razorpay_order = razorpay_client.order.create({
+            "amount": order_amount,
+            "currency": order_currency,
+            "receipt": order_receipt,
+            "payment_capture": "1"
+        })
+        
+        return jsonify({
+            "success": True,
+            "order_id": razorpay_order['id'],
+            "amount": order_amount,
+            "key_id": RAZORPAY_KEY_ID
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/ticket/<ticket_id>")
+def view_ticket(ticket_id):
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM public_entries WHERE qr_code_path=%s", (ticket_id,))
+    entry = cur.fetchone()
+    cur.close()
+    conn.close()
+    
+    if not entry:
+        return "Ticket Not Found", 404
+        
+    return render_template("ticket.html", entry=entry)
+
+@app.route("/api/confirm-entry-payment", methods=["POST"])
+def confirm_entry_payment():
+    if not session.get("phone_verified"):
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    data = request.get_json()
+    payment_id = data.get("payment_id")
+    order_id = data.get("order_id")
+    signature = data.get("signature")
+    
+    role = data.get("role")
+    name = data.get("name")
+    phone = session.get("phone_number")
+    count = data.get("count")
+    amount = data.get("amount") # In Rupees
+    
+    # Verify Signature
+    params_dict = {
+        'razorpay_order_id': order_id,
+        'razorpay_payment_id': payment_id,
+        'razorpay_signature': signature
+    }
+    
+    try:
+        razorpay_client.utility.verify_payment_signature({
+            'razorpay_order_id': order_id,
+            'razorpay_payment_id': payment_id,
+            'razorpay_signature': signature
+        })
+        
+        # Signature Valid - Generate Unique Ticket ID
+        ticket_id = str(uuid.uuid4())
+        event_date = session.get('temp_event_date')
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO public_entries (name, phone, role, count, amount, status, payment_id, qr_code_path, event_date) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (name, phone, role, count, amount, "Paid", payment_id, ticket_id, event_date)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Construct Ticket URL
+        ticket_url = f"{request.host_url}ticket/{ticket_id}"
+
+        return jsonify({
+            "success": True, 
+            "message": "Entry Confirmed",
+            "ticket_id": ticket_id,
+            "ticket_url": ticket_url
+        })
+        
+    except Exception as e:
+        print(f"Payment verification failed: {e}")
+        return jsonify({"success": False, "error": "Payment Verification Failed"}), 400
 
 # ---------------- EXPORT REPORTS ----------------
 @app.route("/generate_case_report/<case_id>")
@@ -843,7 +1205,7 @@ def chatbot_api():
     response_en = "I didn't understand that command."
     
     # Process logic using English text (msg_en)
-    if "status" in msg_en or "report" in msg_en:
+    if any(k in msg_en for k in ["status", "report", "available", "online", "running"]):
         cur.execute("SELECT COUNT(*) as cnt FROM alerts WHERE status!='Resolved'")
         pending = cur.fetchone()['cnt']
         cur.execute("SELECT COUNT(*) as cnt FROM users WHERE status='approved'")
@@ -852,7 +1214,7 @@ def chatbot_api():
         severity = "Normal" if pending == 0 else "High Alert" if pending > 5 else "Elevated"
         response_en = f"System Status: {severity}. {pending} active alerts. {officers} officers registered."
 
-    elif "alert" in msg_en:
+    elif any(k in msg_en for k in ["alert", "alarm", "emergency"]):
         cur.execute("SELECT severity, message FROM alerts WHERE status!='Resolved' ORDER BY created_at DESC LIMIT 3")
         alerts = cur.fetchall()
         if not alerts:
@@ -861,23 +1223,26 @@ def chatbot_api():
              lines = [f"[{a['severity']}] {a['message']}" for a in alerts]
              response_en = "Recent Alerts: " + "; ".join(lines)
     
-    elif "officer" in msg_en:
+    elif any(k in msg_en for k in ["officer", "police", "offer"]):
         cur.execute("SELECT name FROM users WHERE status='approved' LIMIT 5")
         users = cur.fetchall()
         names = ", ".join([u['name'] for u in users])
         response_en = f"Active Officers: {names}..."
 
-    elif "message" in msg_en or "contact" in msg_en or "admin" in msg_en:
+    elif any(k in msg_en for k in ["pay", "fine", "challan", "bill"]):
+        response_en = "To pay a fine, please verify your Challan ID in the 'Fines' section or use the payment link sent to your SMS."
+
+    elif any(k in msg_en for k in ["message", "contact", "admin"]):
         response_en = "To contact the Admin or other officers, please use the 'Messages' section in your dashboard sidebar."
 
     elif "hello" in msg_en or "hi" in msg_en:
         response_en = f"Hello {session['user']['name']}. How can I assist you with security operations?"
 
     elif "help" in msg_en:
-        response_en = "Commands: 'status', 'alerts', 'report', 'officers'"
+        response_en = "Commands: 'status', 'alerts', 'officers', 'pay fine', 'contact admin'"
     
     else:
-        response_en = "I didn't quite catch that. Try asking for 'status' or 'alerts'."
+        response_en = "I didn't quite catch that. Try asking for 'status', 'alerts', or 'payment'."
 
     cur.close()
     conn.close()
@@ -1052,6 +1417,7 @@ def sos_alert():
     alert_type = data.get("type")
     lat = data.get("lat")
     lng = data.get("lng")
+    snapshot = data.get("snapshot") # Base64 Image string
     
     officer_name = session["user"]["name"]
     user_id = session["user"]["id"]
@@ -1063,14 +1429,11 @@ def sos_alert():
         
     try:
         conn = get_db()
-        # ... (rest of sos_alert logic if needed, but assuming I append routes after it or Replace it if I view it all, but I couldn't view all. 
-        # checking the file content again, sos_alert was cutting off at line 800.
-        # I should append the new routes at the end of the file.
-        # But `multi_replace` needs specific target.
-        # I'll rely on a known unique string near the end or just before `if __name__` if it exists, or the last known function.
-        # The file ended with `sos_alert` being cut off. I should read the end of the file first to be safe.)
-
         cur = conn.cursor()
+        
+        # Save snapshot if provided (mock save, normally write to file)
+        snapshot_path = None
+        # In real impl, decode base64 and save to static/evidence
         
         # Insert as Critical Alert
         cur.execute("""
@@ -1141,11 +1504,21 @@ def officer_activity():
                 "type": "message"
             })
             
+        # 3. Patrol Logs (Mock)
+        my_patrols = [p for p in MOCK_PATROL_LOGS if p['user_id'] == user_id]
+        for p in my_patrols:
+            logs.append({
+                "action": "Patrol Check-in",
+                "details": f"{p['location']} - {p['notes']}",
+                "timestamp": p['time'],
+                "type": "patrol"
+            })
+
         cur.close()
         conn.close()
         
         # Sort combined logs
-        logs.sort(key=lambda x: x['timestamp'], reverse=True)
+        logs.sort(key=lambda x: str(x['timestamp']), reverse=True)
         return jsonify(logs[:20])
         
     except Exception as e:
@@ -1408,12 +1781,69 @@ def log_patrol():
     
     data = request.json
     loc = data.get("location", "Unknown Location")
+    notes = data.get("notes", "")
     
-    # In a real app, save to 'patrol_logs' table.
-    # Here we just log to activity feed via existing logic (simulated by print for now or handled client side)
-    print(f"Patrol Log: {session['user']['name']} at {loc}")
+    # Store in Mock Store
+    log_entry = {
+        "user_id": session["user"]["id"],
+        "name": session["user"]["name"],
+        "location": loc,
+        "notes": notes,
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    MOCK_PATROL_LOGS.append(log_entry)
     
-    return jsonify({"success": True, "message": "Patrol Check-in Recorded"})
+    return jsonify({"success": True, "message": "Patrol Point Logged"})
+
+@app.route("/api/report_incident", methods=["POST"])
+def report_incident():
+    if "user" not in session: return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    data = request.form
+    inc_type = data.get("type", "General")
+    location = data.get("location", "Unknown")
+    description = data.get("description", "")
+    
+    # In a real app, save image from request.files
+    
+    conn = get_db()
+    cur = conn.cursor()
+    # Using alerts table for generic incidents for now
+    msg = f"INCIDENT REPORT [{inc_type}] at {location}: {description}"
+    cur.execute("INSERT INTO alerts (source, message, severity, status, assigned_officer_id) VALUES (%s, %s, 'Warning', 'Investigating', %s)",
+                (f"Officer-{session['user']['name']}", msg, session['user']['id']))
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+    return jsonify({"success": True})
+
+@app.route("/api/simulate_ai_alert", methods=["POST"])
+def simulate_ai_alert():
+    if "user" not in session: return jsonify({"success": False}), 401
+    
+    data = request.json
+    alert_kind = data.get("kind", "loitering")
+    
+    msgs = {
+        "loitering": "Suspicious Loitering detected at Gate 3 (Duration: >10m)",
+        "crowd_rapid": "Rapid Crowd Movement detected in Sector B - Potential Stampede Risk",
+        "restricted": "Unauthorized Person in Server Room (Zone R-1)",
+        "object": "Unattended Object detected near Lobby Elevator"
+    }
+    
+    sev = "Critical" if alert_kind in ["restricted", "crowd_rapid"] else "Warning"
+    msg = msgs.get(alert_kind, "Abnormal Behavior Detected")
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO alerts (source, message, severity, status, created_at) VALUES (%s, %s, %s, %s, NOW())",
+                ("AI-Surveillance", msg, sev, "Open"))
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+    return jsonify({"success": True, "message": msg})
 
 
 # ---------------- RESTRICTED ZONES ----------------
@@ -1608,10 +2038,10 @@ def crowd_status():
     
     # Simulate fluctuations
     sectors = [
-        {"id": "sec_a", "name": "Main Stage Area", "density": random.randint(60, 95), "status": "High"},
-        {"id": "sec_b", "name": "VIP Entry Gate", "density": random.randint(20, 50), "status": "Normal"},
-        {"id": "sec_c", "name": "Public Exit South", "density": random.randint(40, 75), "status": "Moderate"},
-        {"id": "sec_d", "name": "Parking Lot A", "density": random.randint(10, 30), "status": "Low"}
+        {"id": "sec_a", "name": "Main Stage Area", "density": random.randint(60, 95), "status": "High", "capacity": 1000},
+        {"id": "sec_b", "name": "VIP Entry Gate", "density": random.randint(20, 50), "status": "Normal", "capacity": 300},
+        {"id": "sec_c", "name": "Public Exit South", "density": random.randint(40, 75), "status": "Moderate", "capacity": 500},
+        {"id": "sec_d", "name": "Parking Lot A", "density": random.randint(10, 30), "status": "Low", "capacity": 800}
     ]
     
     # Auto-adjust status string based on density
@@ -1624,6 +2054,35 @@ def crowd_status():
     return jsonify(sectors)
 
 
+
+
+
+@app.route("/api/trigger_simulation", methods=["POST"])
+def trigger_simulation():
+    if "user" not in session or session["user"]["role"] != "admin":
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+        
+    data = request.get_json()
+    sim_type = data.get("type", "intrusion")
+    
+    conn = get_db()
+    cur = conn.cursor()
+    
+    if sim_type == "intrusion":
+        msg = "UNAUTHORIZED ACCESS DETECTED: ZONE B-4 (SERVER ROOM)"
+        source = "Sensors (Simulated)"
+        severity = "Critical"
+    else:
+        msg = "Simulated Alert Test"
+        source = "Admin Test"
+        severity = "Warning"
+        
+    cur.execute("INSERT INTO alerts (message, source, severity, created_at) VALUES (?, ?, ?, ?)",
+                (msg, source, severity, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"success": True, "message": "Simulation Triggered", "alert": msg})
 
 if __name__ == "__main__":
     app.run(debug=True)

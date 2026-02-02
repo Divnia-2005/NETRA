@@ -22,6 +22,65 @@
       } catch (e) { console.error(e); }
     }
 
+    // Crowd Density Chart
+    let crowdChartInstance = null;
+
+    async function initCrowdChart() {
+      const ctx = document.getElementById('crowdChart');
+      if (!ctx) return;
+
+      crowdChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Density (%)',
+            data: [],
+            backgroundColor: [],
+            borderColor: [],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.1)' } },
+            x: { grid: { display: false } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+
+      updateCrowdData();
+      setInterval(updateCrowdData, 4000); // Live update
+    }
+
+    async function updateCrowdData() {
+      if (!crowdChartInstance) return;
+      try {
+        const res = await fetch('/api/crowd_status'); // Used existing endpoint name
+        const data = await res.json();
+
+        const labels = data.map(d => d.name);
+        const values = data.map(d => d.density);
+        const colors = data.map(d => {
+          if (d.density > 80) return 'rgba(239, 68, 68, 0.7)'; // Red
+          if (d.density > 50) return 'rgba(234, 179, 8, 0.7)'; // Yellow
+          return 'rgba(34, 197, 94, 0.7)'; // Green
+        });
+
+        crowdChartInstance.data.labels = labels;
+        crowdChartInstance.data.datasets[0].data = values;
+        crowdChartInstance.data.datasets[0].backgroundColor = colors;
+        crowdChartInstance.data.datasets[0].borderColor = colors.map(c => c.replace('0.7', '1'));
+        crowdChartInstance.update();
+
+      } catch (e) { console.error("Crowd Chart Error:", e); }
+    }
+
     // Patrol Log
     async function logPatrol() {
       if (!confirm("Log your current location as Patrol Check-in?")) return;
@@ -39,7 +98,10 @@
       } catch (e) { alert("Error logging patrol"); }
     }
 
-    window.addEventListener('load', loadOfficerStats);
+    window.addEventListener('load', () => {
+      loadOfficerStats();
+      initCrowdChart();
+    });
   </script>
   <!-- Google Fonts: Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -258,6 +320,18 @@
       </svg>
     </button>
 
+    <!-- Voice Command Button -->
+    <button onclick="startVoiceCommand()" id="micBtn"
+      class="ml-2 text-green-400 hover:text-white border border-green-500/30 p-1.5 rounded-full transition relative group"
+      title="Voice Commands">
+      <div id="micPulse" class="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-0"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+          d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
+          clip-rule="evenodd" />
+      </svg>
+    </button>
+
     <span class="font-bold text-[#13ec5b] text-lg flex-1">
       NETRA Officer
     </span>
@@ -371,7 +445,7 @@
       </div>
 
       <!-- NEW: Patrol Check-in -->
-      <button onclick="logPatrol()"
+      <button onclick="openPatrolModal()"
         class="w-full bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 border border-blue-500/50 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 group">
         <span>📍 Log Patrol Point</span>
       </button>
@@ -403,6 +477,9 @@
         </button>
         <button class="nav-btn" onclick="showSection('activity_log', this); loadActivityLogs()"
           data-i18n="activity_log">Activity Log</button>
+        <button class="nav-btn text-blue-400" onclick="showSection('verify_entry', this)">
+          <span>🎟️ Verify Entry</span>
+        </button>
         <button class="nav-btn" onclick="showSection('settings', this)" data-i18n="settings">Settings</button>
         <a href="/help" class="nav-btn" data-i18n="help">Help & FAQ</a>
       </nav>
@@ -440,9 +517,12 @@
         <button onclick="triggerAction('redirect')"
           class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b] transition text-green-300"
           data-i18n="redirect_crowd">Redirect Crowd</button>
-        <button onclick="openChallanModal()"
+        <button onclick="openIncidentModal()"
           class="bg-blue-600/20 text-blue-400 border border-blue-600 px-4 py-3 rounded hover:bg-blue-600 hover:text-white transition"
-          data-i18n="issue_challan">Report Incident</button>
+          data-i18n="report_incident">Report Incident</button>
+        <button onclick="openChallanModal()"
+          class="glass border border-gray-500/30 px-4 py-3 rounded hover:bg-gray-800 transition text-gray-300"
+          data-i18n="issue_challan">Issue Fine</button>
       </div>
 
       <!-- SUSPECT SEARCH ENGINE -->
@@ -464,29 +544,96 @@
         </div>
       </div>
 
-      <!-- LIVE FEEDS -->
-      <h2 class="text-xl font-bold mb-4" data-i18n="live_surveillance">Live Surveillance</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- LIVE FEEDS (Enhanced Grid) -->
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold" data-i18n="live_surveillance">Live Surveillance</h2>
+        <button onclick="enterFullScreen()"
+          class="text-xs text-green-400 border border-green-500/30 px-2 py-1 rounded hover:bg-green-500/10">Full
+          View</button>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <!-- Cam 1 -->
-        <div class="cam-feed rounded-xl h-48 relative group">
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-01 [GATE]')">
           <div class="cam-overlay">CAM-01 [GATE]</div>
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <div class="scan-line"></div>
-          <div class="scan-line"></div>
-          <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60" alt="Live surveillance feed from Gate Camera">
+          <div class="absolute bottom-2 right-2 bg-green-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
+            DENSITY: LOW</div>
+
+          <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=400&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 1">
         </div>
         <!-- Cam 2 -->
-        <div class="cam-feed rounded-xl h-48 relative group">
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-02 [LOBBY]')">
           <div class="cam-overlay">CAM-02 [LOBBY]</div>
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <div class="scan-line" style="animation-delay: 1.5s;"></div>
-          <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60" alt="Live surveillance feed from Lobby Camera">
+          <div class="absolute bottom-2 right-2 bg-yellow-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
+            DENSITY: MED</div>
+          <div class="scan-line" style="animation-duration: 3s;"></div>
+          <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=400&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 2">
+        </div>
+        <!-- Cam 3 -->
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-03 [CORRIDOR]')">
+          <div class="cam-overlay">CAM-03 [CORRIDOR]</div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> LIVE
+          </div>
+          <div class="absolute bottom-2 right-2 bg-green-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
+            DENSITY: LOW</div>
+          <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=400&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 3">
+        </div>
+        <!-- Cam 4 -->
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-04 [EXIT]')">
+          <div class="cam-overlay">CAM-04 [EXIT]</div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> LIVE
+          </div>
+          <div class="absolute bottom-2 right-2 bg-red-500/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+            DENSITY: HIGH</div>
+          <div class="scan-line" style="animation-duration: 2.5s;"></div>
+          <img src="https://images.unsplash.com/photo-1588544975200-50355cda85da?q=80&w=400&auto=format&fit=crop"
+            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 4">
+        </div>
+      </div>
+
+      <!-- AI SUSPICIOUS ACTIVITY ALERTS -->
+      <div class="mb-6">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-orange-400 flex items-center gap-2">
+            <span class="animate-pulse">⚠️</span> Suspicious Activity Alerts
+          </h2>
+          <button onclick="simulateAIAlert()"
+            class="text-xs border border-orange-500/30 text-orange-400 px-2 py-1 rounded hover:bg-orange-500/10">Simulate
+            Detection</button>
+        </div>
+
+        <div id="aiAlertsPanel" class="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+          <!-- Dynamic Alert Cards -->
+          <div class="min-w-[280px] bg-red-900/20 border border-red-500/40 p-3 rounded-xl">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs font-mono text-red-400">CAM-04 [EXIT]</span>
+              <span class="text-[10px] bg-red-500 text-white px-1.5 rounded">CRITICAL</span>
+            </div>
+            <h3 class="font-bold text-sm text-white mb-1">Crowd Surge Detected</h3>
+            <p class="text-xs text-gray-400 mb-3">Rapid movement > 3m/s detected in narrow exit corridor.</p>
+            <div class="h-24 bg-black rounded mb-3 overflow-hidden relative">
+              <img src="https://images.unsplash.com/photo-1588544975200-50355cda85da?q=80&w=300"
+                class="w-full h-full object-cover opacity-80">
+              <div class="absolute inset-0 border-2 border-red-500 animate-pulse"></div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="this.parentElement.parentElement.remove()"
+                class="flex-1 bg-white/10 hover:bg-white/20 text-xs py-1.5 rounded">Acknowledge</button>
+              <button onclick="triggerAction('broadcast')"
+                class="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs py-1.5 rounded font-bold">Escalate</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -497,10 +644,12 @@
         <h2 class="text-xl font-bold" data-i18n="crowd_density">Crowd Density Monitoring</h2>
         <span class="text-xs text-gray-400 animate-pulse">● Live Analysis</span>
       </div>
-      <div id="crowdContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Populated by JS -->
-        <div class="glass p-4 rounded text-center">
-          <p class="text-gray-500">Connecting to sensors...</p>
+      <div id="crowdContainer"
+        class="col-span-1 md:col-span-2 lg:col-span-4 bg-[#112217] p-4 rounded-xl border border-white/5">
+        <!-- Canvas for Chart.js -->
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Real-Time Sector Density</h3>
+        <div class="h-64 w-full">
+          <canvas id="crowdChart"></canvas>
         </div>
       </div>
     </section>
@@ -652,61 +801,171 @@
 
     <!-- MESSAGES -->
     <section id="messages" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Messages</h2>
-      <div class="glass p-6 rounded-xl border border-white/5 mb-6">
-        <h3 class="panel-title mb-4 font-bold text-emerald-400">Comms with HQ</h3>
-
-        <!-- Compose -->
-        <div class="mb-4 space-y-2">
-          <div class="flex gap-2">
-            <select id="msgRecipient"
-              class="glass p-2 rounded text-sm border-white/10 w-1/3 text-gray-300 focus:outline-none focus:border-green-500">
-              <option value="" disabled selected class="bg-black">Select Recipient...</option>
-              {% for user in recipients %}
-              <option value="{{ user.id }}"
-                class="bg-black {{ 'font-bold text-green-400' if user.role == 'admin' else '' }}">
-                {{ user.name }} ({{ user.role|capitalize }})
-              </option>
-              {% endfor %}
-            </select>
-
-            <input id="msgContent" type="text" placeholder="Type a message..."
-              class="glass p-2 rounded text-sm border-white/10 w-full text-white placeholder-gray-500 focus:outline-none focus:border-green-500">
-            <button onclick="sendMessage()"
-              class="bg-gradient-to-r from-green-500 to-emerald-600 text-black px-4 py-2 rounded hover:from-green-400 hover:to-emerald-500 font-bold shadow-lg shadow-green-500/20 transition-all duration-300">
-              Send
-            </button>
-          </div>
-        </div>
-
-        <!-- Log -->
-        <h4 class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Inbox / Sent</h4>
-        <div class="h-[400px] overflow-y-auto space-y-3 custom-scrollbar pr-2">
-          {% for msg in messages %}
-          <div
-            class="p-3 rounded-lg text-sm shadow-sm {{ 'bg-emerald-900/20 ml-12 border-l-2 border-emerald-500 self-end text-right' if msg.sender_id == session.user.id else 'bg-white/5 mr-12 border-r-2 border-gray-600' }}">
+      <h2 class="text-xl font-bold mb-4" data-i18n="messages">Messages & Broadcasts</h2>
+      <!-- ... existing messages content ... -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[500px]">
+        <!-- Inbox -->
+        <div class="glass p-4 rounded-xl flex flex-col h-full border border-white/5">
+          <h3 class="font-bold text-gray-400 text-sm uppercase tracking-wider mb-3">Inbox</h3>
+          <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+            {% for msg in messages %}
             <div
-              class="flex justify-between text-xs text-gray-500 mb-1 {{ 'flex-row-reverse' if msg.sender_id == session.user.id }}">
-              <span class="font-bold text-gray-400">
-                {% if msg.sender_id == session.user.id %}
-                You ➔ Admin
-                {% else %}
-                {{ msg.sender_name }} ➔ You
-                {% endif %}
-              </span>
-              <span>{{ msg.timestamp }}</span>
+              class="bg-black/40 p-3 rounded-lg border {{ 'border-yellow-500/30' if not msg.receiver_id else 'border-white/5' }}">
+              <div class="flex justify-between items-start mb-1">
+                <span class="text-xs font-bold {{ 'text-yellow-400' if not msg.receiver_id else 'text-blue-400' }}">
+                  {{ 'BROADCAST' if not msg.receiver_id else msg.sender_name }}
+                </span>
+                <span class="text-[10px] text-gray-500">{{ msg.timestamp }}</span>
+              </div>
+              <p class="text-sm text-gray-300">{{ msg.content }}</p>
             </div>
-            <p class="text-gray-200">{{ msg.content }}</p>
+            {% endfor %}
+            {% if not messages %}
+            <p class="text-center text-gray-500 text-xs mt-10">No messages found.</p>
+            {% endif %}
           </div>
-          {% endfor %}
-          {% if not messages %}
-          <div class="flex flex-col items-center justify-center h-full text-gray-500 space-y-2">
-            <span class="text-2xl opacity-20">💬</span>
-            <p class="text-xs italic">No messages.</p>
-          </div>
-          {% endif %}
         </div>
       </div>
+    </section>
+
+    <!-- NEW: VERIFY ENTRY -->
+    <section id="verify_entry" class="section hidden">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <span>🎟️</span> Verify Public Entry Ticket
+      </h2>
+
+      <div class="max-w-xl mx-auto glass p-8 rounded-2xl border border-blue-500/20 text-center">
+        <div class="mb-6">
+          <label class="block text-sm text-gray-400 mb-2">Scan QR Code or Enter Ticket ID</label>
+          <input type="text" id="ticketInput" placeholder="e.g. QR-ENTRY-12345"
+            class="w-full bg-black/50 border border-white/20 rounded-xl p-4 text-center text-xl tracking-widest text-white focus:border-blue-500 focus:outline-none transition-colors">
+        </div>
+
+        <button onclick="verifyTicket()"
+          class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transform hover:scale-105 transition-all w-full mb-6">
+          Verify Ticket
+        </button>
+
+        <!-- Result Display -->
+        <div id="verifyResult" class="hidden animate-fade-in">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <script>
+      async function verifyTicket() {
+        const ticketId = document.getElementById('ticketInput').value.trim();
+        const resultDiv = document.getElementById('verifyResult');
+
+        if (!ticketId) return alert("Please enter a Ticket ID");
+
+        resultDiv.innerHTML = '<div class="text-blue-400 animate-pulse">Verifying...</div>';
+        resultDiv.classList.remove('hidden');
+
+        try {
+          const res = await fetch('/api/verify-ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticket_id: ticketId })
+          });
+          const data = await res.json();
+
+          let content = '';
+          if (data.status === 'valid') {
+            content = `
+              <div class="bg-green-500/10 border border-green-500 p-6 rounded-xl">
+                <div class="text-5xl mb-2">✅</div>
+                <h3 class="text-2xl font-bold text-green-400 mb-1">ACCESS GRANTED</h3>
+                <p class="text-white text-lg">${data.details.name}</p>
+                <div class="mt-4 grid grid-cols-2 gap-2 text-sm text-gray-300">
+                   <div class="bg-black/30 p-2 rounded">Role: <span class="text-white font-bold uppercase">${data.details.role}</span></div>
+                   <div class="bg-black/30 p-2 rounded">Count: <span class="text-white font-bold">${data.details.count}</span></div>
+                </div>
+              </div>
+            `;
+            // Clear input on success
+            document.getElementById('ticketInput').value = '';
+          } else if (data.status === 'used') {
+            content = `
+              <div class="bg-yellow-500/10 border border-yellow-500 p-6 rounded-xl">
+                <div class="text-5xl mb-2">⚠️</div>
+                <h3 class="text-2xl font-bold text-yellow-400 mb-1">ALREADY USED</h3>
+                <p class="text-gray-300">Ticket has already been scanned.</p>
+                <p class="text-sm mt-2 text-gray-500">Holder: ${data.details.name}</p>
+              </div>
+            `;
+          } else {
+            content = `
+              <div class="bg-red-500/10 border border-red-500 p-6 rounded-xl">
+                <div class="text-5xl mb-2">❌</div>
+                <h3 class="text-2xl font-bold text-red-400 mb-1">INVALID TICKET</h3>
+                <p class="text-gray-300">This ticket does not exist in the system.</p>
+              </div>
+            `;
+          }
+          resultDiv.innerHTML = content;
+
+        } catch (e) {
+          resultDiv.innerHTML = `<div class="text-red-400">System Error: ${e.message}</div>`;
+        }
+      }
+    </script>
+    <h2 class="text-xl font-bold mb-4">Messages</h2>
+    <div class="glass p-6 rounded-xl border border-white/5 mb-6">
+      <h3 class="panel-title mb-4 font-bold text-emerald-400">Comms with HQ</h3>
+
+      <!-- Compose -->
+      <div class="mb-4 space-y-2">
+        <div class="flex gap-2">
+          <select id="msgRecipient"
+            class="glass p-2 rounded text-sm border-white/10 w-1/3 text-gray-300 focus:outline-none focus:border-green-500">
+            <option value="" disabled selected class="bg-black">Select Recipient...</option>
+            {% for user in recipients %}
+            <option value="{{ user.id }}"
+              class="bg-black {{ 'font-bold text-green-400' if user.role == 'admin' else '' }}">
+              {{ user.name }} ({{ user.role|capitalize }})
+            </option>
+            {% endfor %}
+          </select>
+
+          <input id="msgContent" type="text" placeholder="Type a message..."
+            class="glass p-2 rounded text-sm border-white/10 w-full text-white placeholder-gray-500 focus:outline-none focus:border-green-500">
+          <button onclick="sendMessage()"
+            class="bg-gradient-to-r from-green-500 to-emerald-600 text-black px-4 py-2 rounded hover:from-green-400 hover:to-emerald-500 font-bold shadow-lg shadow-green-500/20 transition-all duration-300">
+            Send
+          </button>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <h4 class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Inbox / Sent</h4>
+      <div class="h-[400px] overflow-y-auto space-y-3 custom-scrollbar pr-2">
+        {% for msg in messages %}
+        <div
+          class="p-3 rounded-lg text-sm shadow-sm {{ 'bg-emerald-900/20 ml-12 border-l-2 border-emerald-500 self-end text-right' if msg.sender_id == session.user.id else 'bg-white/5 mr-12 border-r-2 border-gray-600' }}">
+          <div
+            class="flex justify-between text-xs text-gray-500 mb-1 {{ 'flex-row-reverse' if msg.sender_id == session.user.id }}">
+            <span class="font-bold text-gray-400">
+              {% if msg.sender_id == session.user.id %}
+              You ➔ Admin
+              {% else %}
+              {{ msg.sender_name }} ➔ You
+              {% endif %}
+            </span>
+            <span>{{ msg.timestamp }}</span>
+          </div>
+          <p class="text-gray-200">{{ msg.content }}</p>
+        </div>
+        {% endfor %}
+        {% if not messages %}
+        <div class="flex flex-col items-center justify-center h-full text-gray-500 space-y-2">
+          <span class="text-2xl opacity-20">💬</span>
+          <p class="text-xs italic">No messages.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
     </section>
 
     <!-- CASES SECTION -->
@@ -1097,8 +1356,285 @@
     {% include 'component_chatbot.html' %}
   </main>
 
+  <!-- MODALS CONTAINER -->
+
+  <!-- PATROL MODAL -->
+  <div id="patrolModal"
+    class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+    <div class="glass p-6 rounded-2xl max-w-sm w-full border border-blue-500/30">
+      <h3 class="text-lg font-bold text-blue-400 mb-4">📍 Log Patrol Point</h3>
+
+      <label class="text-xs text-gray-400">Current Location (GPS)</label>
+      <div class="flex gap-2 mb-4">
+        <input id="patrolLoc" type="text" value="Detecting..."
+          class="glass w-full p-2 text-sm text-white border-white/10 rounded" readonly>
+        <button onclick="detectLocation()"
+          class="p-2 bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600 hover:text-white">↻</button>
+      </div>
+
+      <label class="text-xs text-gray-400">Notes / Observations</label>
+      <textarea id="patrolNotes" rows="3"
+        class="glass w-full p-2 text-sm text-white border-white/10 rounded focus:border-blue-500 outline-none mb-6"
+        placeholder="Everything looks normal..."></textarea>
+
+      <div class="flex gap-3">
+        <button onclick="document.getElementById('patrolModal').classList.add('hidden')"
+          class="flex-1 py-2 border border-gray-600 rounded text-gray-400 hover:text-white">Cancel</button>
+        <button onclick="submitPatrolLog()"
+          class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold shadow-lg">Submit Log</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INCIDENT MODAL -->
+  <div id="incidentModal"
+    class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+    <div class="glass p-8 rounded-2xl max-w-md w-full border border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+      <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        <span class="text-red-500">📝</span> Manual Incident Report
+      </h2>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm text-gray-400">Incident Type</label>
+          <select id="incType"
+            class="w-full glass p-3 rounded text-white border-white/20 bg-black focus:border-red-500 outline-none">
+            <option>General Disturbance</option>
+            <option>Medical Emergency</option>
+            <option>Fire Hazard</option>
+            <option>Vandalism</option>
+            <option>Theft</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-sm text-gray-400">Location</label>
+          <input id="incLoc" type="text" placeholder="e.g. North Wing, 2nd Floor"
+            class="w-full glass p-3 rounded text-white border-white/20 focus:border-red-500 outline-none">
+        </div>
+
+        <div>
+          <label class="text-sm text-gray-400">Description</label>
+          <textarea id="incDesc" rows="3" placeholder="Describe what happened..."
+            class="w-full glass p-3 rounded text-white border-white/20 focus:border-red-500 outline-none"></textarea>
+        </div>
+
+        <!-- Image Upload Mock -->
+        <div>
+          <label class="text-sm text-gray-400">Attach Photo (Optional)</label>
+          <input type="file" class="text-sm text-gray-400">
+        </div>
+
+        <div class="flex gap-3 mt-4">
+          <button onclick="document.getElementById('incidentModal').classList.add('hidden')"
+            class="flex-1 py-3 border border-gray-600 rounded text-gray-400 hover:text-white">Cancel</button>
+          <button onclick="submitIncident()"
+            class="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white rounded font-bold shadow-lg">Report Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAM PREVIEW MODAL -->
+  <div id="camModal" class="fixed inset-0 bg-black z-[200] hidden flex flex-col">
+    <div class="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-800">
+      <h2 id="camTitle" class="text-xl font-bold text-green-400 font-mono">CAM-01 [GATE] - LIVE FEED</h2>
+      <button onclick="document.getElementById('camModal').classList.add('hidden')"
+        class="text-white hover:text-red-500 text-2xl">×</button>
+    </div>
+    <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+      <img id="camFullImg" src="" class="h-full object-contain">
+      <div class="absolute top-4 right-4 animate-pulse flex items-center gap-2">
+        <span class="w-3 h-3 bg-red-600 rounded-full"></span>
+        <span class="text-red-600 font-bold font-mono">REC</span>
+      </div>
+    </div>
+  </div>
+
   <!-- JS -->
   <script>
+    /* ---------- NEW FUNCTIONS ---------- */
+
+    // 1. Patrol Log
+    function openPatrolModal() {
+      document.getElementById('patrolModal').classList.remove('hidden');
+      detectLocation();
+    }
+
+    function detectLocation() {
+      const field = document.getElementById('patrolLoc');
+      field.value = "Locating...";
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          field.value = `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)}`;
+        }, () => {
+          field.value = "GPS Signal Lost (Using Last Known)";
+        });
+      } else {
+        field.value = "Geolocation not supported";
+      }
+    }
+
+    async function submitPatrolLog() {
+      const loc = document.getElementById('patrolLoc').value;
+      const notes = document.getElementById('patrolNotes').value;
+
+      try {
+        await fetch('/api/log_patrol', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ location: loc, notes: notes })
+        });
+        alert("Patrol Logged Successfully!");
+        document.getElementById('patrolModal').classList.add('hidden');
+        document.getElementById('patrolNotes').value = ""; // Reset
+        // Refresh Log if visible
+      } catch (e) { alert("Error logging patrol"); }
+    }
+
+    // 2. Incident Reporting
+    function openIncidentModal() {
+      document.getElementById('incidentModal').classList.remove('hidden');
+    }
+
+    async function submitIncident() {
+      const type = document.getElementById('incType').value;
+      const loc = document.getElementById('incLoc').value;
+      const desc = document.getElementById('incDesc').value;
+
+      if (!loc || !desc) return alert("Please fill location and description");
+
+      const formData = new FormData();
+      formData.append("type", type);
+      formData.append("location", loc);
+      formData.append("description", desc);
+
+      try {
+        await fetch('/api/report_incident', { method: 'POST', body: formData });
+        alert("Incident Reported to Command Center.");
+        document.getElementById('incidentModal').classList.add('hidden');
+      } catch (e) { alert("Submission failed"); }
+    }
+
+    // 3. Camera View
+    function viewCamera(title) {
+      document.getElementById('camTitle').textContent = title + " - LIVE FEED";
+      // Use a generic high-res placeholder or match the clicked image
+      document.getElementById('camFullImg').src = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=1200";
+      document.getElementById('camModal').classList.remove('hidden');
+    }
+
+    // 4. AI Alert Simulation
+    async function simulateAIAlert() {
+      try {
+        const kinds = ["loitering", "crowd_rapid", "restricted", "object"];
+        const k = kinds[Math.floor(Math.random() * kinds.length)];
+
+        const res = await fetch('/api/simulate_ai_alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: k })
+        });
+        const data = await res.json();
+
+        // Add card to UI
+        const panel = document.getElementById('aiAlertsPanel');
+        const div = document.createElement('div');
+        div.className = "min-w-[280px] bg-red-900/20 border border-red-500/40 p-3 rounded-xl animate-bounce-in";
+        div.innerHTML = `
+                 <div class="flex justify-between items-start mb-2">
+                     <span class="text-xs font-mono text-red-400">AI-CAM-09</span>
+                     <span class="text-[10px] bg-red-500 text-white px-1.5 rounded">NEW</span>
+                 </div>
+                 <h3 class="font-bold text-sm text-white mb-1">AI Detection</h3>
+                 <p class="text-xs text-gray-400 mb-3">${data.message}</p>
+                 <div class="flex gap-2">
+                     <button onclick="this.parentElement.parentElement.remove()" class="flex-1 bg-white/10 hover:bg-white/20 text-xs py-1.5 rounded">Acknowledge</button>
+                     <button class="flex-1 bg-red-600 text-white text-xs py-1.5 rounded font-bold">Escalate</button>
+                 </div>
+            `;
+        panel.prepend(div);
+
+      } catch (e) { console.error(e); }
+    }
+
+    // 5. Voice Command (Webkit)
+    function startVoiceCommand() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("Voice commands are only supported in Chrome/Edge.");
+        return;
+      }
+
+      const btn = document.getElementById('micBtn');
+      const pulse = document.getElementById('micPulse');
+
+      const recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        pulse.classList.remove('opacity-0');
+        btn.classList.add('bg-green-500/20');
+      };
+
+      recognition.onend = () => {
+        pulse.classList.add('opacity-0');
+        btn.classList.remove('bg-green-500/20');
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        console.log("Voice Command:", transcript);
+
+        if (transcript.includes("show gate") || transcript.includes("camera 1")) {
+          viewCamera("CAM-01 [GATE]");
+        } else if (transcript.includes("sos") || transcript.includes("emergency")) {
+          openSOSModal();
+        } else if (transcript.includes("log patrol") || transcript.includes("check in")) {
+          openPatrolModal();
+        } else if (transcript.includes("incident") || transcript.includes("report")) {
+          openIncidentModal();
+        } else {
+          alert("Command recognized: " + transcript);
+        }
+      };
+
+      recognition.start();
+    }
+
+    // 6. Enhanced SOS (with Mock Snapshot)
+    async function triggerSOS(type) {
+      // Mock Snapshot (Red canvas)
+      const canvas = document.createElement('canvas');
+      canvas.width = 300; canvas.height = 200;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = "red"; ctx.fillRect(0, 0, 300, 200);
+      const snapshot = canvas.toDataURL(); // Base64
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          await sendSOS(type, pos.coords.latitude, pos.coords.longitude, snapshot);
+        }, async () => {
+          await sendSOS(type, null, null, snapshot); // Location failed
+        });
+      } else {
+        await sendSOS(type, null, null, snapshot);
+      }
+    }
+
+    async function sendSOS(type, lat, lng, snap) {
+      try {
+        await fetch('/api/sos_alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: type, lat: lat, lng: lng, snapshot: snap })
+        });
+        alert("SOS SENT! BACKUP INBOUND.");
+        closeSOSModal();
+      } catch (e) { alert("SOS FAILED. CALL HQ MANUALLY."); }
+    }
+
     function toggleSidebar() {
       const sidebar = document.getElementById("sidebar");
       const overlay = document.getElementById("overlay");
@@ -1106,6 +1642,7 @@
       sidebar.classList.toggle("-translate-x-full");
       overlay.classList.toggle("hidden");
     }
+
 
     /* Close sidebar after clicking any menu item */
     /* Event Listeners replaced by direct call in showSection to handle mobile check */
