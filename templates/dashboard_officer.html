@@ -1369,6 +1369,34 @@
 
   <!-- JS -->
   <script>
+    /* ---------- NAVIGATION ---------- */
+    function showSection(sectionId, btn) {
+      // 1. Hide all sections
+      document.querySelectorAll('.section').forEach(sec => {
+        sec.classList.add('hidden');
+      });
+
+      // 2. Remove active state from all buttons
+      document.querySelectorAll('.nav-btn').forEach(b => {
+        b.classList.remove('bg-green-500/10', 'text-green-400', 'border-l-4', 'border-green-500');
+        b.classList.add('text-gray-400', 'hover:bg-white/5');
+      });
+
+      // 3. Show target section
+      document.getElementById(sectionId).classList.remove('hidden');
+
+      // 4. Set active state on clicked button
+      if (btn) {
+        btn.classList.remove('text-gray-400', 'hover:bg-white/5');
+        btn.classList.add('bg-green-500/10', 'text-green-400', 'border-l-4', 'border-green-500');
+      }
+
+      // 5. Special Case: Map Resize
+      if (sectionId === 'map' && typeof mapInstance !== 'undefined' && mapInstance) {
+        setTimeout(() => { mapInstance.invalidateSize(); }, 200);
+      }
+    }
+
     /* ---------- NEW FUNCTIONS ---------- */
 
     // 1. Patrol Log
@@ -1603,7 +1631,7 @@
     }
 
     async function saveOfficerProfile() {
-      const name = document.getElementById("officerProfileName").value; // FIXED: Correct ID
+      const name = document.getElementById("officerProfileName").value;
       if (!name) return alert("Name is required");
 
       try {

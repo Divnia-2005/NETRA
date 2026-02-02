@@ -816,7 +816,7 @@ def verify_visitor():
     
     # Check for visitor in public_entries
     # Exact match for now
-    cur.execute("SELECT * FROM public_entries WHERE name=%s AND phone=%s", (name, phone))
+    cur.execute("SELECT * FROM public_entries WHERE name=%s AND phone=%s LIMIT 1", (name, phone))
     visitor = cur.fetchone()
     cur.close()
     conn.close()
@@ -825,7 +825,7 @@ def verify_visitor():
         return jsonify({"success": False, "status": "denied", "message": "Visitor not found in database."})
 
     # Check Approval Status
-    if visitor["status"] == "Approved":
+    if visitor["status"] in ["Approved", "Paid", "Confirmed"]:
         return jsonify({
             "success": True,
             "status": "granted",
@@ -833,7 +833,7 @@ def verify_visitor():
             "visitor": {
                 "name": visitor["name"],
                 "role": visitor["role"],
-                "status": "Approved"
+                "status": visitor["status"]
             }
         })
     elif visitor["status"] == "Entered":
