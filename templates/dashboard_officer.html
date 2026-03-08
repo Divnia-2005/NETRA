@@ -469,7 +469,7 @@
           <span>🎟️ Verify Entry</span>
         </button>
         <button class="nav-btn" onclick="showSection('settings', this)" data-i18n="settings">Settings</button>
-        <a href="/help" class="nav-btn" data-i18n="help">Help & FAQ</a>
+        <button class="nav-btn" onclick="showSection('help', this)" data-i18n="help">Help & FAQ</button>
       </nav>
     </div>
     <button class="nav-btn" onclick="showSection('profile', this)" data-i18n="profile">
@@ -505,6 +505,9 @@
         <button onclick="triggerAction('redirect')"
           class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b] transition text-green-300"
           data-i18n="redirect_crowd">Redirect Crowd</button>
+        <button onclick="openRouteModal()"
+          class="glass border border-cyan-500/30 px-4 py-3 rounded hover:bg-cyan-900/30 transition text-cyan-300"
+          data-i18n="smart_route">Smart Route</button>
         <button onclick="openIncidentModal()"
           class="bg-blue-600/20 text-blue-400 border border-blue-600 px-4 py-3 rounded hover:bg-blue-600 hover:text-white transition"
           data-i18n="report_incident">Report Incident</button>
@@ -550,7 +553,7 @@
           <div class="absolute bottom-2 right-2 bg-green-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
             DENSITY: LOW</div>
 
-          <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=400&auto=format&fit=crop"
+          <img src="/video_feed/0"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 1">
         </div>
         <!-- Cam 2 -->
@@ -562,7 +565,7 @@
           <div class="absolute bottom-2 right-2 bg-yellow-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
             DENSITY: MED</div>
           <div class="scan-line" style="animation-duration: 3s;"></div>
-          <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=400&auto=format&fit=crop"
+          <img src="/video_feed/1"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 2">
         </div>
         <!-- Cam 3 -->
@@ -573,7 +576,7 @@
           </div>
           <div class="absolute bottom-2 right-2 bg-green-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
             DENSITY: LOW</div>
-          <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=400&auto=format&fit=crop"
+          <img src="/video_feed/2"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 3">
         </div>
         <!-- Cam 4 -->
@@ -585,8 +588,36 @@
           <div class="absolute bottom-2 right-2 bg-red-500/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">
             DENSITY: HIGH</div>
           <div class="scan-line" style="animation-duration: 2.5s;"></div>
-          <img src="https://images.unsplash.com/photo-1588544975200-50355cda85da?q=80&w=400&auto=format&fit=crop"
+          <img src="/video_feed/3"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 4">
+        </div>
+      </div>
+
+      <!-- Second Row of Cameras -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <!-- Cam 5 -->
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-05 [PARKING]')">
+          <div class="cam-overlay">CAM-05 [PARKING]</div>
+          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <img src="/video_feed/4" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
+        </div>
+        <!-- Cam 6 -->
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-06 [ROOF]')">
+          <div class="cam-overlay">CAM-06 [ROOF]</div>
+          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <img src="/video_feed/5" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
+        </div>
+        <!-- Cam 7 -->
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-07 [SERVER]')">
+          <div class="cam-overlay">CAM-07 [SERVER]</div>
+          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <img src="/video_feed/6" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
+        </div>
+        <!-- Cam 8 -->
+        <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-08 [DOCK]')">
+          <div class="cam-overlay">CAM-08 [DOCK]</div>
+          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <img src="/video_feed/7" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
         </div>
       </div>
 
@@ -611,7 +642,7 @@
             <h3 class="font-bold text-sm text-white mb-1">Crowd Surge Detected</h3>
             <p class="text-xs text-gray-400 mb-3">Rapid movement > 3m/s detected in narrow exit corridor.</p>
             <div class="h-24 bg-black rounded mb-3 overflow-hidden relative">
-              <img src="https://images.unsplash.com/photo-1588544975200-50355cda85da?q=80&w=300"
+              <img src="/video_feed/2"
                 class="w-full h-full object-cover opacity-80">
               <div class="absolute inset-0 border-2 border-red-500 animate-pulse"></div>
             </div>
@@ -786,6 +817,12 @@
           Export to Excel
         </button>
       </div>
+    </section>
+    
+    <!-- HELP & FAQ -->
+    <section id="help" class="section hidden">
+        <h1 class="text-3xl font-bold mb-6 tracking-tight">Help & FAQ</h1>
+        {% include 'component_help.html' %}
     </section>
 
     <!-- MESSAGES -->
@@ -1463,8 +1500,26 @@
     // 3. Camera View
     function viewCamera(title) {
       document.getElementById('camTitle').textContent = title + " - LIVE FEED";
-      // Use a generic high-res placeholder or match the clicked image
-      document.getElementById('camFullImg').src = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=1200";
+      
+      const img = document.getElementById('camFullImg');
+      const idx_map = {
+          'CAM-01': 0, 'CAM-02': 1, 'CAM-03': 2, 'CAM-04': 3,
+          'CAM-05': 4, 'CAM-06': 5, 'CAM-07': 6, 'CAM-08': 7
+      };
+      
+      let found = false;
+      for (const [key, val] of Object.entries(idx_map)) {
+          if (title.includes(key)) {
+              img.src = `/video_feed/${val}`;
+              found = true;
+              break;
+          }
+      }
+      
+      if (!found) {
+          img.src = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=1200";
+      }
+      
       document.getElementById('camModal').classList.remove('hidden');
     }
 
@@ -2546,7 +2601,306 @@
 
   </script>
 
+
+  <!-- SMART ROUTE MODAL -->
+  <div id="routeModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+    <div class="bg-[#0a160f] border border-[#13ec5b]/30 p-6 rounded-xl w-full max-w-2xl shadow-2xl relative">
+      <button onclick="closeRouteModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+      <h2 class="text-2xl font-bold mb-4 text-[#13ec5b]">Smart Route Recommendation</h2>
+
+      <div class="flex gap-4 mb-4">
+        <select id="startNode" class="flex-1 bg-black/30 border border-green-800 rounded p-2 text-white">
+          <option value="Gate A">Gate A</option>
+          <option value="Lobby">Lobby</option>
+          <option value="Corridor 1">Corridor 1</option>
+          <option value="Cafeteria">Cafeteria</option>
+          <option value="Exit B">Exit B</option>
+          <option value="Parking">Parking</option>
+        </select>
+        <span class="text-gray-400 self-center">&rarr;</span>
+        <select id="endNode" class="flex-1 bg-black/30 border border-green-800 rounded p-2 text-white">
+          <option value="Exit B">Exit B</option>
+          <option value="Parking">Parking</option>
+          <option value="Gate A">Gate A</option>
+          <option value="Lobby">Lobby</option>
+          <option value="Corridor 1">Corridor 1</option>
+          <option value="Cafeteria">Cafeteria</option>
+        </select>
+        <button onclick="calculateRoute()" class="bg-[#13ec5b] text-black font-bold px-4 rounded hover:bg-green-400">
+          Find Path
+        </button>
+      </div>
+
+      <div class="relative bg-black/50 h-80 rounded border border-white/10 flex items-center justify-center p-4">
+        <canvas id="routeCanvas" class="w-full h-full"></canvas>
+        <div id="routeText"
+          class="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded text-xs text-green-300 hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OFFLINE INDICATOR -->
+  <div id="offlineIndicator"
+    class="fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded shadow-lg hidden z-50 animate-pulse">
+    ⚠ You are Offline. Data will sync when online.
+  </div>
+  <div id="syncIndicator" class="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg hidden z-50">
+    ↻ Syncing Data...
+  </div>
+
+  <script>
+    function openRouteModal() { document.getElementById('routeModal').classList.remove('hidden'); initRouteCanvas(); }
+    function closeRouteModal() { document.getElementById('routeModal').classList.add('hidden'); }
+
+    // --- SMART ROUTE LOGIC ---
+    const venueGraph = {
+      "Gate A": { "Lobby": 10, "Parking": 5 },
+      "Lobby": { "Gate A": 10, "Corridor 1": 8, "Cafeteria": 12 },
+      "Corridor 1": { "Lobby": 8, "Exit B": 6, "Cafeteria": 5 },
+      "Cafeteria": { "Lobby": 12, "Corridor 1": 5 },
+      "Exit B": { "Corridor 1": 6, "Parking": 15 },
+      "Parking": { "Gate A": 5, "Exit B": 15 }
+    };
+
+    const nodeCoords = {
+      "Gate A": { x: 10, y: 50 },
+      "Lobby": { x: 30, y: 50 },
+      "Corridor 1": { x: 60, y: 50 },
+      "Cafeteria": { x: 60, y: 20 },
+      "Exit B": { x: 90, y: 50 },
+      "Parking": { x: 50, y: 90 }
+    };
+
+    let crowdData = {};
+
+    function initRouteCanvas() {
+      drawRoute([]);
+    }
+
+    async function calculateRoute() {
+      const start = document.getElementById('startNode').value;
+      const end = document.getElementById('endNode').value;
+
+      if (start === end) { alert("Start and End cannot be same."); return; }
+
+      try {
+        const res = await fetch('/api/crowd_status');
+        const data = await res.json();
+        data.forEach(n => crowdData[n.name] = n.density);
+      } catch (e) {
+        console.error("Failed to fetch crowd data", e);
+        Object.keys(venueGraph).forEach(k => crowdData[k] = Math.random() * 100);
+      }
+
+      const graph = venueGraph;
+      const costs = {};
+      const processed = [];
+      const parents = {};
+
+      Object.keys(graph).forEach(node => {
+        if (node === start) costs[node] = 0;
+        else costs[node] = Infinity;
+      });
+
+      let node = findLowestCostNode(costs, processed);
+
+      while (node) {
+        const cost = costs[node];
+        const neighbors = graph[node];
+        Object.keys(neighbors).forEach(n => {
+          let density = crowdData[n] || 0;
+          let weight = neighbors[n] + (density * 0.5);
+          let newCost = cost + weight;
+          if (newCost < costs[n]) {
+            costs[n] = newCost;
+            parents[n] = node;
+          }
+        });
+        processed.push(node);
+        node = findLowestCostNode(costs, processed);
+      }
+
+      let path = [end];
+      let parent = parents[end];
+      while (parent) {
+        path.push(parent);
+        parent = parents[parent];
+      }
+      path.reverse();
+
+      if (path[0] !== start) { alert("No path found!"); return; }
+
+      drawRoute(path);
+      const routeStr = path.join(" > ");
+      document.getElementById('routeText').innerText = "Recommended Route: " + routeStr;
+      document.getElementById('routeText').classList.remove('hidden');
+    }
+
+    function findLowestCostNode(costs, processed) {
+      let lowest = Infinity;
+      let lowestNode = null;
+      Object.keys(costs).forEach(node => {
+        let cost = costs[node];
+        if (cost < lowest && !processed.includes(node)) {
+          lowest = cost;
+          lowestNode = node;
+        }
+      });
+      return lowestNode;
+    }
+
+    function drawRoute(path) {
+      const canvas = document.getElementById('routeCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+
+      Object.keys(venueGraph).forEach(node => {
+        const neighbors = venueGraph[node];
+        const startPos = nodeCoords[node];
+        Object.keys(neighbors).forEach(n => {
+          const endPos = nodeCoords[n];
+          ctx.beginPath();
+          ctx.moveTo(startPos.x * w / 100, startPos.y * h / 100);
+          ctx.lineTo(endPos.x * w / 100, endPos.y * h / 100);
+          ctx.stroke();
+        });
+      });
+
+      if (path.length > 1) {
+        ctx.strokeStyle = '#13ec5b';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        let startPos = nodeCoords[path[0]];
+        ctx.moveTo(startPos.x * w / 100, startPos.y * h / 100);
+        for (let i = 1; i < path.length; i++) {
+          let p = nodeCoords[path[i]];
+          ctx.lineTo(p.x * w / 100, p.y * h / 100);
+        }
+        ctx.stroke();
+      }
+
+      Object.keys(nodeCoords).forEach(node => {
+        const pos = nodeCoords[node];
+        const x = pos.x * w / 100;
+        const y = pos.y * h / 100;
+        let density = crowdData[node] || 0;
+        let color = '#22c55e';
+        if (density > 50) color = '#eab308';
+        if (density > 80) color = '#ef4444';
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px Arial';
+        ctx.fillText(node, x - 15, y - 15);
+        if (crowdData[node] !== undefined) {
+          ctx.fillStyle = '#ccc';
+          ctx.fillText(Math.floor(density) + '%', x - 10, y + 20);
+        }
+      });
+    }
+
+    // --- SERVICE WORKER & OFFLINE SYNC ---
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js').then(reg => {
+          console.log('SW Registered');
+        }).catch(err => console.log('SW Error', err));
+      });
+    }
+
+    // IndexedDB Setup
+    const dbName = 'NetraOfflineDB';
+    let db;
+    const request = indexedDB.open(dbName, 1);
+    request.onupgradeneeded = function (event) {
+      db = event.target.result;
+      if (!db.objectStoreNames.contains('logs')) {
+        db.createObjectStore('logs', { autoIncrement: true });
+      }
+    };
+    request.onsuccess = function (event) { db = event.target.result; };
+
+    // Network Status
+    window.addEventListener('offline', () => {
+      document.getElementById('offlineIndicator').classList.remove('hidden');
+    });
+    window.addEventListener('online', () => {
+      document.getElementById('offlineIndicator').classList.add('hidden');
+      document.getElementById('syncIndicator').classList.remove('hidden');
+      syncData();
+    });
+
+    // Override fetch for key actions to store offline
+    // NOTE: This triggers on 'logPatrol' call.
+
+    // Original logPatrol function needs to be aware of offline.
+    // We can wrap it or just check navigator.onLine inside it, but existing code is inside <head> script.
+    // We can override window.logPatrol here?
+    const originalLogPatrol = window.logPatrol;
+    window.logPatrol = async function () {
+      if (!navigator.onLine) {
+        if (!confirm("Offline Mode: Save Patrol Log locally?")) return;
+        const loc = "Lat: 28.61, Lng: 77.21 (Offline Cache)";
+        saveToIndexedDB({ type: 'patrol', data: { location: loc }, time: new Date() });
+        alert("Saved to Offline Storage. Will sync when online.");
+        return;
+      }
+      return originalLogPatrol();
+    };
+
+    function saveToIndexedDB(item) {
+      const transaction = db.transaction(['logs'], 'readwrite');
+      const store = transaction.objectStore('logs');
+      store.add(item);
+    }
+
+    function syncData() {
+      if (!db) return;
+      const transaction = db.transaction(['logs'], 'readwrite');
+      const store = transaction.objectStore('logs');
+      const req = store.getAll();
+
+      req.onsuccess = function () {
+        const items = req.result;
+        if (items.length === 0) {
+          document.getElementById('syncIndicator').classList.add('hidden');
+          return;
+        }
+
+        let syncedCount = 0;
+        items.forEach(item => {
+          if (item.type === 'patrol') {
+            fetch('/api/log_patrol', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item.data)
+            }).then(() => {
+              syncedCount++;
+              if (syncedCount === items.length) {
+                // Clear DB
+                const tx = db.transaction(['logs'], 'readwrite');
+                tx.objectStore('logs').clear();
+                document.getElementById('syncIndicator').classList.add('hidden');
+                alert("App Synced " + syncedCount + " offline items.");
+              }
+            });
+          }
+        });
+      };
+    }
+  </script>
+
   <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
 </body>
+
 
 </html>

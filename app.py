@@ -1,4 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response
+import time
+import cv2
+import numpy as np
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
 import razorpay
@@ -12,6 +15,7 @@ import random
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 import os
+import threading
 from dotenv import load_dotenv
 from pathlib import Path
 import re
@@ -80,7 +84,107 @@ def landing():
 
 @app.route("/help")
 def help_page():
-    return render_template("help.html")
+    if "user" not in session:
+        return redirect(url_for("login"))
+    
+    # Redirect to the dashboard. The user can then click Help internally.
+    # This ensures and enforces the "same URL" logic requested by the user.
+    if session["user"].get("role") == "admin":
+        return redirect(url_for("dashboard_admin"))
+    return redirect(url_for("dashboard_officer"))
+
+# ---------------- THREAD-SAFE CAMERA SINGLETON ----------------
+class CameraStream:
+    def __init__(self):
+        self.camera = cv2.VideoCapture(0)
+        self.lock = threading.Lock()
+        self.last_frame = None
+        self.is_running = True
+        self.thread = threading.Thread(target=self._update_frame, daemon=True)
+        self.thread.start()
+
+    def _update_frame(self):
+        while self.is_running:
+            success, frame = self.camera.read()
+            if success:
+                with self.lock:
+                    self.last_frame = frame.copy()
+            time.sleep(0.01) # Small sleep to reduce CPU load
+
+    def get_frame(self):
+        with self.lock:
+            if self.last_frame is not None:
+                return self.last_frame.copy()
+        return None
+
+# Global instance
+camera_stream = None
+
+def get_camera_stream():
+    global camera_stream
+    if camera_stream is None:
+        camera_stream = CameraStream()
+    return camera_stream
+
+# ---------------- VIDEO FEED (LAPTOP CAMERA) ----------------
+def gen_frames(camera_index=0):
+    stream = get_camera_stream()
+    while True:
+        frame = stream.get_frame()
+        if frame is None:
+            time.sleep(0.1)
+            continue
+            
+        # Apply Filters based on simulated camera index
+        if camera_index == 1:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        elif camera_index == 2:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frame = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
+        elif camera_index == 3:
+            frame = cv2.Canny(frame, 100, 200)
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            frame = cv2.bitwise_not(frame)
+        elif camera_index == 4:
+            # Sepia / Retro look
+            kernel = np.array([[0.272, 0.534, 0.131],
+                               [0.349, 0.686, 0.168],
+                               [0.393, 0.769, 0.189]])
+            frame = cv2.transform(frame, kernel)
+        elif camera_index == 5:
+            # Blur / Privacy mode
+            frame = cv2.GaussianBlur(frame, (21, 21), 0)
+        elif camera_index == 6:
+            # Solarize
+            frame = 255 - frame
+        elif camera_index == 7:
+            # Hue shift (Neon look)
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            hsv[:,:,0] = (hsv[:,:,0] + 40) % 180
+            frame = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+            
+        # Add a timestamp and Camera ID overlay
+        cam_names = ["GATE-MAIN", "LOBBY-SEC", "CORRIDOR-A", "EXIT-WEST", 
+                     "PARKING-01", "ROOF-SOUTH", "SERVER-02", "DOCK-B"]
+        name = cam_names[camera_index] if camera_index < len(cam_names) else f"CAM-{camera_index}"
+        
+        cv2.putText(frame, f"NETRA {name}: {datetime.now().strftime('%H:%M:%S')}", 
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route('/video_feed/<int:index>')
+def video_feed(index):
+    if "user" not in session:
+        return "Unauthorized", 401
+    # Support up to 8 simulated cameras (0 to 7)
+    if index < 0 or index > 7:
+        return "Not Found", 404
+    return Response(gen_frames(index), mimetype='multipart/x-mixed-replace; boundary=frame')
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -210,19 +314,25 @@ def login():
 def google_callback():
     data = request.get_json()
     token = data.get("token")
+    print(f"DEBUG: Using Google Client ID: {GOOGLE_CLIENT_ID}")
+
+    if not GOOGLE_CLIENT_ID:
+        print("❌ Error: GOOGLE_CLIENT_ID is None in app.py!")
+        return jsonify({"success": False, "error": "Server Configuration Error: GOOGLE_CLIENT_ID not found."}), 500
 
     try:
         idinfo = id_token.verify_oauth2_token(
             token,
             grequests.Request(),
-            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_ID,
+            clock_skew_in_seconds=10
         )
 
         name = idinfo["name"]
         
-        # Validate Name from Google
-        if not re.match(r"^[a-zA-Z\s]+$", name) or not name.strip():
-             return jsonify({"success": False, "error": "Google Account Name invalid. Name must contain only letters and spaces."}), 400
+        # Validate Name from Google (Relaxed to allow . and -)
+        if not re.match(r"^[a-zA-Z\s.-]+$", name) or not name.strip():
+             return jsonify({"success": False, "error": "Google Account Name invalid. Name must contain only letters, spaces, dots, or hyphens."}), 400
 
         user = {
             "google_id": idinfo["sub"],
@@ -236,15 +346,17 @@ def google_callback():
         cur.execute("""
             INSERT INTO users (google_id, name, email, role, status)
             VALUES (%s,%s,%s,%s, 'pending')
-            ON DUPLICATE KEY UPDATE name=%s
+            ON DUPLICATE KEY UPDATE 
+                google_id = COALESCE(google_id, VALUES(google_id)),
+                name = VALUES(name)
         """, (
             user["google_id"],
             user["name"],
             user["email"],
-            user["role"],
-            user["name"]
+            user["role"]
         ))
         conn.commit()
+        print(f"DEBUG: Database record for {user['email']} ensured.")
 
         # Fetch full user details (ID and Status)
         cur.execute("SELECT * FROM users WHERE email=%s", (user["email"],))
@@ -263,8 +375,14 @@ def google_callback():
         elif db_user["status"] == "blocked":
              return jsonify({"success": False, "error": "Your account has been blocked due to suspicious activity."}), 403
 
-        # Update session with DB user data (includes id)
-        session["user"] = db_user
+        # Update session with only serializable DB user data (id, name, email, role, status)
+        session["user"] = {
+            "id": db_user["id"],
+            "name": db_user["name"],
+            "email": db_user["email"],
+            "role": db_user["role"],
+            "status": db_user["status"]
+        }
 
         return jsonify({
             "success": True,
@@ -272,10 +390,10 @@ def google_callback():
         })
 
     except Exception as e:
-        print("Google Login Error:", e)
+        print("❌ Google Login Error:", str(e))
         return jsonify({
             "success": False,
-            "error": "Google authentication failed"
+            "error": f"Google authentication failed: {str(e)}"
         }), 401
 
 
@@ -1981,8 +2099,26 @@ def delete_zone():
 
 @app.route("/api/process_detection", methods=["POST"])
 def process_detection():
-    # ... (existing code) ...
-    pass # Kept for context
+    data = request.get_json()
+    cam_id = data.get("camera_id", "CAM-UNKNOWN")
+    d_type = data.get("detection_type", "General Alert")
+    conf = data.get("confidence", 0.0)
+    
+    msg = f"AI DETECTION: {d_type} (Conf: {int(conf*100)}%)"
+    
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO alerts (source, message, severity, status, created_at) VALUES (%s, %s, %s, %s, NOW())",
+                    (cam_id, msg, "Warning", "Open"))
+        conn.commit()
+        cur.close()
+        conn.close()
+        print(f"DEBUG: Processed detection {d_type} from {cam_id}")
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"Error processing detection: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ---------------- OFFICER REVIEW ----------------
 @app.route("/api/get_pending_reviews")
@@ -2153,5 +2289,24 @@ def trigger_simulation():
     
     return jsonify({"success": True, "message": "Simulation Triggered", "alert": msg})
 
+
+@app.route("/api/crowd_status")
+def crowd_status_api():
+    if "user" not in session:
+        return jsonify([]), 401
+    
+    # Mock Nodes for Smart Route
+    # In a real scenario, this would aggregate camera data
+    nodes = [
+        {"name": "Gate A",  "density": random.randint(5, 40)},
+        {"name": "Lobby",   "density": random.randint(20, 95)}, # Likely crowded
+        {"name": "Corridor 1", "density": random.randint(10, 60)},
+        {"name": "Cafeteria", "density": random.randint(15, 80)},
+        {"name": "Exit B",  "density": random.randint(5, 30)},
+        {"name": "Parking", "density": random.randint(0, 20)}
+    ]
+    return jsonify(nodes)
+
 if __name__ == "__main__":
     app.run(debug=True)
+

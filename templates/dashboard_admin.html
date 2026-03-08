@@ -244,7 +244,7 @@
       <button onclick="showSection('health', this)" class="nav-btn" data-i18n="health">System Health</button>
       <button onclick="showSection('config', this)" class="nav-btn" data-i18n="config">Configuration</button>
       <button onclick="showSection('restricted_zones', this); loadZones()" class="nav-btn">Restricted Zones</button>
-      <a href="/help" class="nav-btn" data-i18n="help">Help & FAQ</a>
+      <button class="nav-btn" onclick="showSection('help', this)" data-i18n="help">Help & FAQ</button>
       <button onclick="showSection('profile', this)" class="nav-btn">Profile</button>
 
 
@@ -915,72 +915,54 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-200px)]">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 h-[calc(100vh-200px)] overflow-y-auto pr-2 custom-scrollbar">
         <!-- Cam 1 -->
         <div class="cam-feed rounded-xl relative group">
-          <div class="cam-overlay">
-            CAM-01 [MAIN GATE]<br>
-            <span class="live-clock">--:--:--</span>
-          </div>
-          <div class="rec-indicator">
-            <div class="rec-dot"></div> REC
-          </div>
-          <div class="scan-line"></div>
-          <div class="crosshair"></div>
-          <!-- Placeholder Image with Gradient Overlay -->
-          <img src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
-
-          <div
-            class="absolute bottom-4 left-4 right-4 flex justify-center opacity-0 group-hover:opacity-100 transition">
-            <div class="glass flex gap-2 p-1 rounded-full">
-              <button class="p-2 hover:bg-white/10 rounded-full text-white" title="PTZ Left">⬅️</button>
-              <button class="p-2 hover:bg-white/10 rounded-full text-white" title="Zoom In">➕</button>
-              <button class="p-2 hover:bg-white/10 rounded-full text-white" title="PTZ Right">➡️</button>
-            </div>
-          </div>
+          <div class="cam-overlay">CAM-01 [MAIN GATE]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/0" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
-
         <!-- Cam 2 -->
         <div class="cam-feed rounded-xl relative group">
-          <div class="cam-overlay">
-            CAM-02 [LOBBY]<br>
-            <span class="live-clock">--:--:--</span>
-          </div>
-          <div class="rec-indicator">
-            <div class="rec-dot"></div> REC
-          </div>
-          <div class="scan-line" style="animation-delay: 1s;"></div>
-          <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="cam-overlay">CAM-02 [LOBBY]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/1" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
-
         <!-- Cam 3 -->
         <div class="cam-feed rounded-xl relative group">
-          <div class="cam-overlay">
-            CAM-03 [PERIMETER N]<br>
-            <span class="live-clock">--:--:--</span>
-          </div>
-          <div class="rec-indicator">
-            <div class="rec-dot"></div> REC
-          </div>
-          <div class="scan-line" style="animation-delay: 2s;"></div>
-          <img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="cam-overlay">CAM-03 [PERIMETER]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/2" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
-
         <!-- Cam 4 -->
         <div class="cam-feed rounded-xl relative group">
-          <div class="cam-overlay">
-            CAM-04 [SERVER ROOM]<br>
-            <span class="live-clock">--:--:--</span>
-          </div>
-          <div class="rec-indicator">
-            <div class="rec-dot"></div> REC
-          </div>
-          <div class="scan-line" style="animation-delay: 3s;"></div>
-          <img src="https://images.unsplash.com/photo-1558494949-ef2bb3cc4702?q=80&w=600&auto=format&fit=crop"
-            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="cam-overlay">CAM-04 [SERVER]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/3" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+        </div>
+        <!-- Cam 5 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">CAM-05 [PARKING]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/4" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+        </div>
+        <!-- Cam 6 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">CAM-06 [ROOF]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/5" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+        </div>
+        <!-- Cam 7 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">CAM-07 [STAIRS]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/6" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+        </div>
+        <!-- Cam 8 -->
+        <div class="cam-feed rounded-xl relative group">
+          <div class="cam-overlay">CAM-08 [DOCK]<br><span class="live-clock">--:--:--</span></div>
+          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
+          <img src="/video_feed/7" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
       </div>
 
@@ -1272,6 +1254,12 @@
           </p>
         </div>
       </div>
+    </section>
+
+    <!-- HELP & FAQ -->
+    <section id="help" class="section hidden">
+        <h1 class="text-3xl font-bold mb-6 tracking-tight">Help & FAQ</h1>
+        {% include 'component_help.html' %}
     </section>
 
     {% include 'component_chatbot.html' %}
