@@ -94,11 +94,29 @@ def help_page():
     return redirect(url_for("dashboard_officer"))
 
 # ---------------- THREAD-SAFE CAMERA SINGLETON ----------------
+# Initialize HOG detector for global use
+hog_detector = cv2.HOGDescriptor()
+hog_detector.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+
+# Global state for crowd densities
+LATEST_CROWD_DATA = {i: {"name": f"CAM-0{i+1}", "density": 0} for i in range(8)}
+LAST_DB_ALERT_TIME = {i: 0 for i in range(8)} # Rate limit DB writes
+# Specific names as seen in JS/UI
+CAM_DISPLAY_NAMES = ["GATE-MAIN", "LOBBY-SEC", "CORRIDOR-A", "EXIT-WEST", 
+                     "PARKING-01", "ROOF-SOUTH", "SERVER-02", "DOCK-B"]
+for i, name in enumerate(CAM_DISPLAY_NAMES):
+    LATEST_CROWD_DATA[i]["name"] = name
+
+SNAPSHOT_DIR = os.path.join("static", "snapshots")
+os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+
 class CameraStream:
     def __init__(self):
         self.camera = cv2.VideoCapture(0)
         self.lock = threading.Lock()
         self.last_frame = None
+        self.last_rects = []
+        self.last_person_count = 0
         self.is_running = True
         self.thread = threading.Thread(target=self._update_frame, daemon=True)
         self.thread.start()
@@ -107,15 +125,27 @@ class CameraStream:
         while self.is_running:
             success, frame = self.camera.read()
             if success:
+                # Optimized Detection: Resize for speed
+                small_frame = cv2.resize(frame, (400, int(frame.shape[0] * (400 / frame.shape[1]))))
+                (rects, weights) = hog_detector.detectMultiScale(small_frame, winStride=(8, 8), padding=(8, 8), scale=1.05)
+                
+                # Scale rects back to original frame size
+                scale = frame.shape[1] / 400
+                scaled_rects = []
+                for (x, y, w, h) in rects:
+                    scaled_rects.append((int(x * scale), int(y * scale), int(w * scale), int(h * scale)))
+
                 with self.lock:
                     self.last_frame = frame.copy()
-            time.sleep(0.01) # Small sleep to reduce CPU load
+                    self.last_rects = scaled_rects
+                    self.last_person_count = len(scaled_rects)
+            time.sleep(0.01)
 
-    def get_frame(self):
+    def get_data(self):
         with self.lock:
             if self.last_frame is not None:
-                return self.last_frame.copy()
-        return None
+                return self.last_frame.copy(), self.last_rects, self.last_person_count
+        return None, [], 0
 
 # Global instance
 camera_stream = None
@@ -130,52 +160,75 @@ def get_camera_stream():
 def gen_frames(camera_index=0):
     stream = get_camera_stream()
     while True:
-        frame = stream.get_frame()
+        frame, rects, person_count = stream.get_data()
         if frame is None:
             time.sleep(0.1)
             continue
             
-        # Apply Filters based on simulated camera index
-        if camera_index == 1:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-        elif camera_index == 2:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            frame = cv2.applyColorMap(gray, cv2.COLORMAP_JET)
-        elif camera_index == 3:
-            frame = cv2.Canny(frame, 100, 200)
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-            frame = cv2.bitwise_not(frame)
-        elif camera_index == 4:
-            # Sepia / Retro look
-            kernel = np.array([[0.272, 0.534, 0.131],
-                               [0.349, 0.686, 0.168],
-                               [0.393, 0.769, 0.189]])
-            frame = cv2.transform(frame, kernel)
-        elif camera_index == 5:
-            # Blur / Privacy mode
-            frame = cv2.GaussianBlur(frame, (21, 21), 0)
-        elif camera_index == 6:
-            # Solarize
-            frame = 255 - frame
-        elif camera_index == 7:
-            # Hue shift (Neon look)
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            hsv[:,:,0] = (hsv[:,:,0] + 40) % 180
-            frame = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-            
-        # Add a timestamp and Camera ID overlay
-        cam_names = ["GATE-MAIN", "LOBBY-SEC", "CORRIDOR-A", "EXIT-WEST", 
-                     "PARKING-01", "ROOF-SOUTH", "SERVER-02", "DOCK-B"]
-        name = cam_names[camera_index] if camera_index < len(cam_names) else f"CAM-{camera_index}"
+        # --- UI OVERLAY (Ported from netra_cv.py) ---
+        cam_name = CAM_DISPLAY_NAMES[camera_index] if camera_index < len(CAM_DISPLAY_NAMES) else f"CAM-{camera_index}"
+        density = min(100, person_count * 20)
+        is_alert = density >= 80
+
+        # Update global data for API
+        if camera_index < 8:
+            LATEST_CROWD_DATA[camera_index]["density"] = density
+
+        # Header Box (Dark Green / Dark Red)
+        overlay_color = (0, 30, 0) if not is_alert else (0, 0, 50)
+        cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), overlay_color, -1)
         
-        cv2.putText(frame, f"NETRA {name}: {datetime.now().strftime('%H:%M:%S')}", 
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        # Status Label
+        status_text = "SYSTEM STATUS: NORMAL" if not is_alert else "CROWD DENSITY ALERT!"
+        cv2.putText(frame, f"NETRA AI | {status_text}", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         
+        # Crowd Count Label
+        cv2.putText(frame, f"Count: {person_count}", (frame.shape[1] - 120, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (19, 236, 91), 1)
+
+        # Draw Bounding Boxes (Red for alert, Green for normal)
+        box_color = (0, 0, 255) if is_alert else (0, 255, 0)
+        for (x, y, w, h) in rects:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), box_color, 2)
+            cv2.putText(frame, "Person Detected", (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 1)
+
+        # Alert if density high (Simulate DB Alert)
+        if is_alert:
+             current_time = time.time()
+             if current_time - LAST_DB_ALERT_TIME.get(camera_index, 0) > 30:
+                 try:
+                     conn = get_db()
+                     cur = conn.cursor()
+                     alert_msg = f"CRITICAL: High Crowd Density ({density}%) detected at {cam_name}"
+                     # Immediate Snapshot
+                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                     snap_filename = f"alert_{cam_name}_{timestamp}.jpg"
+                     snap_path = os.path.join(SNAPSHOT_DIR, snap_filename)
+                     cv2.imwrite(snap_path, frame)
+                     
+                     cur.execute("""
+                         INSERT INTO alerts (source, message, severity, status, created_at, snapshot_path)
+                         VALUES (%s, %s, 'Critical', 'Open', NOW(), %s)
+                     """, (cam_name, alert_msg, f"static/snapshots/{snap_filename}"))
+                     conn.commit()
+                     cur.close()
+                     conn.close()
+                     LAST_DB_ALERT_TIME[camera_index] = current_time
+                     print(f"DEBUG: Saved snapshot {snap_path}")
+                 except Exception as e:
+                     print(f"Error logging crowd alert: {e}")
+
         ret, buffer = cv2.imencode('.jpg', frame)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route("/api/stop_buzzer", methods=["POST"])
+def stop_buzzer():
+    if "user" not in session:
+        return jsonify({"success": False}), 401
+    # Logic for IOT Buzzer Stop would go here
+    print("DEBUG: Stop Buzzer Command Received")
+    return jsonify({"success": True, "message": "Buzzer Stopped"})
 
 @app.route('/video_feed/<int:index>')
 def video_feed(index):
@@ -1445,6 +1498,8 @@ def chatbot_api():
 
     return jsonify({"response": final_response})
 
+# ---------------- VIDEO STREAMING ----------------
+
 @app.route('/api/system_stats')
 def system_stats():
     # Simulate data due to environment restrictions
@@ -1646,6 +1701,28 @@ def sos_alert():
         print(f"SOS Error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/api/get_recent_alerts")
+def get_recent_alerts():
+    if "user" not in session:
+        return jsonify([]), 401
+    
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    # Fetch last 5 open alerts
+    cur.execute("""
+        SELECT id, source, message, severity, status, created_at 
+        FROM alerts 
+        WHERE status != 'Resolved'
+        ORDER BY created_at DESC LIMIT 5
+    """)
+    alerts = cur.fetchall()
+    for a in alerts:
+        a['created_at'] = a['created_at'].strftime("%H:%M:%S")
+    
+    cur.close()
+    conn.close()
+    return jsonify(alerts)
+
 @app.route("/api/officer_activity")
 def officer_activity():
     if "user" not in session:
@@ -1711,6 +1788,7 @@ def officer_activity():
     except Exception as e:
         print(f"Activity Log Error: {e}")
         return jsonify([])
+
 
 # ---------------- ANALYTICS API ----------------
 @app.route("/api/analytics_data")
@@ -2233,79 +2311,6 @@ def quick_action():
     
     return jsonify({"success": True, "message": alert_msg})
 
-@app.route("/api/crowd_status")
-def crowd_status():
-    if "user" not in session:
-        return jsonify({"success": False}), 401
-        
-    # Mock Data Simulation for Crowd Density
-    import random
-    
-    # Simulate fluctuations
-    sectors = [
-        {"id": "sec_a", "name": "Main Stage Area", "density": random.randint(60, 95), "status": "High", "capacity": 1000},
-        {"id": "sec_b", "name": "VIP Entry Gate", "density": random.randint(20, 50), "status": "Normal", "capacity": 300},
-        {"id": "sec_c", "name": "Public Exit South", "density": random.randint(40, 75), "status": "Moderate", "capacity": 500},
-        {"id": "sec_d", "name": "Parking Lot A", "density": random.randint(10, 30), "status": "Low", "capacity": 800}
-    ]
-    
-    # Auto-adjust status string based on density
-    for s in sectors:
-        if s['density'] > 85: s['status'] = "CRITICAL"
-        elif s['density'] > 70: s['status'] = "High"
-        elif s['density'] > 40: s['status'] = "Moderate"
-        else: s['status'] = "Low"
-        
-    return jsonify(sectors)
-
-
-
-
-
-@app.route("/api/trigger_simulation", methods=["POST"])
-def trigger_simulation():
-    if "user" not in session or session["user"]["role"] != "admin":
-        return jsonify({"success": False, "error": "Unauthorized"}), 403
-        
-    data = request.get_json()
-    sim_type = data.get("type", "intrusion")
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
-    if sim_type == "intrusion":
-        msg = "UNAUTHORIZED ACCESS DETECTED: ZONE B-4 (SERVER ROOM)"
-        source = "Sensors (Simulated)"
-        severity = "Critical"
-    else:
-        msg = "Simulated Alert Test"
-        source = "Admin Test"
-        severity = "Warning"
-        
-    cur.execute("INSERT INTO alerts (message, source, severity, created_at) VALUES (?, ?, ?, ?)",
-                (msg, source, severity, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({"success": True, "message": "Simulation Triggered", "alert": msg})
-
-
-@app.route("/api/crowd_status")
-def crowd_status_api():
-    if "user" not in session:
-        return jsonify([]), 401
-    
-    # Mock Nodes for Smart Route
-    # In a real scenario, this would aggregate camera data
-    nodes = [
-        {"name": "Gate A",  "density": random.randint(5, 40)},
-        {"name": "Lobby",   "density": random.randint(20, 95)}, # Likely crowded
-        {"name": "Corridor 1", "density": random.randint(10, 60)},
-        {"name": "Cafeteria", "density": random.randint(15, 80)},
-        {"name": "Exit B",  "density": random.randint(5, 30)},
-        {"name": "Parking", "density": random.randint(0, 20)}
-    ]
-    return jsonify(nodes)
 
 if __name__ == "__main__":
     app.run(debug=True)

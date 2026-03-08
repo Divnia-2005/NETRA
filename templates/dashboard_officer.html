@@ -460,7 +460,6 @@
         <button class="nav-btn" onclick="showSection('cases', this)" data-i18n="cases">Case Files</button>
         <button class="nav-btn" onclick="showSection('map', this)" data-i18n="tactical_map">Tactical Map</button>
         <button class="nav-btn" onclick="showSection('alerts', this)" data-i18n="alerts">System Alerts</button>
-        <button class="nav-btn" onclick="showSection('analysis', this)" data-i18n="analysis">Analysis</button>
         <button class="nav-btn" onclick="showSection('reports', this)" data-i18n="reports">Reports</button>
         <button class="nav-btn" onclick="showSection('messages', this)" data-i18n="messages">Messages</button>
 
@@ -491,49 +490,17 @@
       <p class="text-sm text-[#a7f3d0] mb-6">System Online</p>
 
       <!-- QUICK ACTIONS -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="flex gap-4 mb-6">
         <button onclick="triggerAction('alarm')"
-          class="bg-red-600/20 text-red-400 border border-red-600 px-4 py-3 rounded hover:bg-red-600 hover:text-white transition"
-          data-i18n="trigger_alarm">Trigger
-          Alarm</button>
-        <button onclick="triggerAction('spotlight')"
-          class="bg-yellow-500/20 text-yellow-400 border border-yellow-500 px-4 py-3 rounded hover:bg-yellow-500 hover:text-black transition"
-          data-i18n="spotlight">Spotlight</button>
-        <button onclick="triggerAction('broadcast')"
-          class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b] transition"
-          data-i18n="broadcast">Broadcast</button>
-        <button onclick="triggerAction('redirect')"
-          class="glass border border-[#13ec5b]/30 px-4 py-3 rounded hover:bg-[#1f3b2b] transition text-green-300"
-          data-i18n="redirect_crowd">Redirect Crowd</button>
-        <button onclick="openRouteModal()"
-          class="glass border border-cyan-500/30 px-4 py-3 rounded hover:bg-cyan-900/30 transition text-cyan-300"
-          data-i18n="smart_route">Smart Route</button>
-        <button onclick="openIncidentModal()"
-          class="bg-blue-600/20 text-blue-400 border border-blue-600 px-4 py-3 rounded hover:bg-blue-600 hover:text-white transition"
-          data-i18n="report_incident">Report Incident</button>
-        <button onclick="openChallanModal()"
-          class="glass border border-gray-500/30 px-4 py-3 rounded hover:bg-gray-800 transition text-gray-300"
-          data-i18n="issue_challan">Issue Fine</button>
+          class="flex-1 bg-red-600/20 text-red-400 border border-red-600 px-6 py-4 rounded-xl hover:bg-red-600 hover:text-white transition font-bold text-lg"
+          data-i18n="trigger_alarm">Trigger Alarm</button>
+        
+        <button onclick="stopBuzzer()"
+          class="flex-1 bg-blue-600/20 text-blue-400 border border-blue-600 px-6 py-4 rounded-xl hover:bg-blue-600 hover:text-white transition font-bold text-lg">
+          Stop Buzzer
+        </button>
       </div>
 
-      <!-- SUSPECT SEARCH ENGINE -->
-      <div class="glass p-6 rounded-xl border border-blue-500/30 mb-6">
-        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-          <span>🔎</span> <span data-i18n="suspect_search">Find Suspect in Crowd</span>
-        </h2>
-        <div class="flex gap-4 mb-4">
-          <input id="suspectQuery" type="text" placeholder="e.g. Red Shirt, Backpack, Running..."
-            class="w-full glass p-3 rounded text-white border-white/20 focus:border-blue-500 outline-none placeholder-gray-500">
-          <button onclick="searchSuspects()"
-            class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded font-bold shadow-lg shadow-blue-500/30 transition">
-            Scan Cameras
-          </button>
-        </div>
-
-        <div id="searchResults" class="grid grid-cols-2 md:grid-cols-4 gap-4 hidden">
-          <!-- Results injected here -->
-        </div>
-      </div>
 
       <!-- LIVE FEEDS (Enhanced Grid) -->
       <div class="flex justify-between items-center mb-4">
@@ -550,9 +517,6 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <div class="absolute bottom-2 right-2 bg-green-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
-            DENSITY: LOW</div>
-
           <img src="/video_feed/0"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 1">
         </div>
@@ -562,9 +526,6 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <div class="absolute bottom-2 right-2 bg-yellow-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
-            DENSITY: MED</div>
-          <div class="scan-line" style="animation-duration: 3s;"></div>
           <img src="/video_feed/1"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 2">
         </div>
@@ -574,8 +535,6 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <div class="absolute bottom-2 right-2 bg-green-500/80 text-black text-[10px] font-bold px-2 py-0.5 rounded">
-            DENSITY: LOW</div>
           <img src="/video_feed/2"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 3">
         </div>
@@ -585,9 +544,6 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <div class="absolute bottom-2 right-2 bg-red-500/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">
-            DENSITY: HIGH</div>
-          <div class="scan-line" style="animation-duration: 2.5s;"></div>
           <img src="/video_feed/3"
             class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 4">
         </div>
@@ -657,21 +613,6 @@
       </div>
     </section>
 
-    <!-- CROWD DENSITY MONITOR -->
-    <section class="section mb-6">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold" data-i18n="crowd_density">Crowd Density Monitoring</h2>
-        <span class="text-xs text-gray-400 animate-pulse">● Live Analysis</span>
-      </div>
-      <div id="crowdContainer"
-        class="col-span-1 md:col-span-2 lg:col-span-4 bg-[#112217] p-4 rounded-xl border border-white/5">
-        <!-- Canvas for Chart.js -->
-        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Real-Time Sector Density</h3>
-        <div class="h-64 w-full">
-          <canvas id="crowdChart"></canvas>
-        </div>
-      </div>
-    </section>
 
     <!-- RECORD CONSOLE (Dynamic) -->
     <section id="alerts" class="section hidden">
@@ -763,32 +704,6 @@
       </div>
     </section>
 
-    <!-- ANALYSIS -->
-    <section id="analysis" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Data Analysis</h2>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="glass p-4 rounded">
-          <h3 class="font-bold mb-4 text-sm text-gray-400">Alert Severity Distribution</h3>
-          <div class="h-64">
-            <canvas id="severityChart"></canvas>
-          </div>
-        </div>
-        <div class="glass p-4 rounded flex flex-col justify-center">
-          <div class="text-center mb-6">
-            <p class="text-4xl font-bold text-[#13ec5b] mb-1">{{ alerts|length }}</p>
-            <p class="text-sm text-gray-400">Total Records</p>
-          </div>
-          <div class="text-center">
-            <p class="text-4xl font-bold text-yellow-400 mb-1">
-              {% set ns = namespace(pending=0) %}
-              {% for a in alerts if a.status != 'Resolved' %}{% set ns.pending = ns.pending + 1 %}{% endfor %}
-              {{ ns.pending }}
-            </p>
-            <p class="text-sm text-gray-400">Pending Actions</p>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- MAP VIEW -->
     <section id="map" class="section hidden">
@@ -1884,6 +1799,51 @@
       });
     }
 
+    /* ---------- REAL-TIME AI ALERTS ---------- */
+    let processedAlertIds = new Set();
+
+    async function pollRealAIAlerts() {
+      try {
+        const res = await fetch('/api/get_recent_alerts');
+        const alerts = await res.json();
+        
+        const panel = document.getElementById('aiAlertsPanel');
+        if (!panel) return;
+
+        alerts.forEach(alert => {
+          if (!processedAlertIds.has(alert.id)) {
+            processedAlertIds.add(alert.id);
+            
+            // Only show AI/Camera alerts here
+            const sourceName = alert.source.toUpperCase();
+            if (sourceName.includes('CAM') || sourceName.includes('GATE') || sourceName.includes('AI')) {
+              const div = document.createElement('div');
+              div.className = "min-w-[280px] bg-red-900/20 border border-red-500/40 p-3 rounded-xl animate-bounce-in";
+              div.innerHTML = `
+                  <div class="flex justify-between items-start mb-2">
+                      <span class="text-xs font-mono text-red-400">${alert.source}</span>
+                      <span class="text-[10px] bg-red-500 text-white px-1.5 rounded">REAL-TIME</span>
+                  </div>
+                  <h3 class="font-bold text-sm text-white mb-1">AI Detection</h3>
+                  <p class="text-xs text-gray-400 mb-3">${alert.message}</p>
+                  <div class="flex gap-2">
+                      <button onclick="updateStatus(${alert.id}, 'Resolved'); this.parentElement.parentElement.remove();" class="flex-1 bg-white/10 hover:bg-white/20 text-xs py-1.5 rounded">Acknowledge</button>
+                      <button class="flex-1 bg-red-600 text-white text-xs py-1.5 rounded font-bold">Escalate</button>
+                  </div>
+              `;
+              panel.prepend(div);
+              
+              // Play alert sound if it's critical
+              if (alert.severity === 'Critical') {
+                  const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
+                  audio.play().catch(e => {});
+              }
+            }
+          }
+        });
+      } catch (e) { console.error("Alert poll error", e); }
+    }
+
     /* ---------- POLLING & NOTIFICATIONS ---------- */
     let lastMsgId = 0;
 
@@ -1960,7 +1920,9 @@
     }
 
     setInterval(pollState, 5000);
+    setInterval(pollRealAIAlerts, 3000);
     pollState();
+    pollRealAIAlerts();
 
     /* ---------- LEAFLET MAP ---------- */
     /* ---------- LEAFLET MAP ---------- */
@@ -2351,86 +2313,21 @@
       }
     }
 
-
-
-    /* --- SUSPECT SEARCH --- */
-    async function searchSuspects() {
-      const query = document.getElementById('suspectQuery').value;
-      const container = document.getElementById('searchResults');
-
-      if (!query) return alert("Enter a description to search.");
-
-      container.classList.remove('hidden');
-      container.innerHTML = '<p class="text-gray-400 col-span-full text-center py-4">Scanning active feeds...</p>';
-
+    async function stopBuzzer() {
       try {
-        const res = await fetch('/api/search_suspects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
+        const res = await fetch('/api/stop_buzzer', {
+          method: 'POST'
         });
-        const results = await res.json();
-
-        if (results.length === 0) {
-          container.innerHTML = '<p class="text-gray-500 col-span-full text-center py-4">No matches found in last 30 minutes.</p>';
-          return;
+        const data = await res.json();
+        if (data.success) {
+          alert("Buzzer system has been deactivated.");
         }
-
-        container.innerHTML = results.map(r => `
-                <div class="bg-black/50 border border-white/10 rounded overflow-hidden hover:border-blue-500 transition cursor-pointer" onclick="openChallanModal(); document.getElementById('challanName').value='${r.desc}'">
-                    <img src="${r.img}" class="w-full h-32 object-cover opacity-80 hover:opacity-100">
-                    <div class="p-2">
-                        <p class="text-xs font-bold text-blue-300">${r.cam}</p>
-                        <p class="text-xs text-gray-400">${r.time}</p>
-                        <p class="text-sm font-semibold text-white mt-1">${r.desc}</p>
-                    </div>
-                </div>
-            `).join('');
-
       } catch (e) { console.error(e); }
     }
 
-    /* --- CROWD DENSITY --- */
-    async function pollCrowdDensity() {
-      const container = document.getElementById('crowdContainer');
-      if (!container) return;
 
-      try {
-        const res = await fetch('/api/crowd_status');
-        const data = await res.json();
 
-        if (!data || data.length === 0) return;
 
-        container.innerHTML = data.map(sec => {
-          let color = 'bg-green-500';
-          let textColor = 'text-green-400';
-
-          if (sec.density > 85) { color = 'bg-red-600'; textColor = 'text-red-500'; }
-          else if (sec.density > 70) { color = 'bg-orange-500'; textColor = 'text-orange-400'; }
-          else if (sec.density > 40) { color = 'bg-yellow-500'; textColor = 'text-yellow-400'; }
-
-          return `
-                  <div class="glass p-4 rounded border border-white/5 relative overflow-hidden group">
-                     <div class="flex justify-between items-end mb-2 relative z-10">
-                        <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">${sec.name}</span>
-                        <span class="text-xl font-bold ${textColor}">${sec.percent}%</span>
-                     </div>
-                     <div class="text-3xl font-bold text-white mb-1 relative z-10">${sec.density}%</div>
-                     <p class="text-xs ${textColor} font-mono relative z-10">${sec.status}</p>
-                     
-                     <!-- Bar BG -->
-                     <div class="absolute bottom-0 left-0 h-1 ${color} transition-all duration-1000" style="width: ${sec.density}%"></div>
-                     <div class="absolute inset-0 ${color} opacity-5 group-hover:opacity-10 transition duration-500"></div>
-                  </div>
-                `;
-        }).join('');
-
-      } catch (e) { console.error("Crowd Poll Error", e); }
-    }
-
-    // Poll every 3 seconds for crowd updates
-    setInterval(pollCrowdDensity, 3000);
-    pollCrowdDensity();
 
     /* --- SEARCH & FILTER --- */
     function filterRecords() {
