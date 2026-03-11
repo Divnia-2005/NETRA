@@ -12,6 +12,31 @@ def get_db():
         database="Netra"
     )
 
+def ensure_columns():
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Check alerts table columns
+        cur.execute("SHOW COLUMNS FROM alerts LIKE 'snapshot_path'")
+        if not cur.fetchone():
+            print("Adding snapshot_path to alerts table...")
+            cur.execute("ALTER TABLE alerts ADD COLUMN snapshot_path VARCHAR(512) DEFAULT NULL")
+            conn.commit()
+        
+        # Check and update alerts status enum
+        cur.execute("SHOW COLUMNS FROM alerts LIKE 'status'")
+        status_col = cur.fetchone()
+        if status_col and 'Open' not in status_col[1]: # Type is at index 1
+            print("Updating alerts status enum to include 'Open'...")
+            cur.execute("ALTER TABLE alerts MODIFY COLUMN status VARCHAR(50) DEFAULT 'Open'")
+            conn.commit()
+
+    except Exception as e:
+        print(f"Column Check Error: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
 def update_schema():
     conn = get_db()
     cur = conn.cursor()
@@ -119,6 +144,34 @@ def update_schema():
         cur.execute("INSERT IGNORE INTO system_config (config_key, config_value) VALUES ('cv_enabled', 'true')")
         cur.execute("INSERT IGNORE INTO system_config (config_key, config_value) VALUES ('password_policy', 'medium')")
 
+        # 8. Core Tables (if missing)
+        print("Ensuring core tables exist...")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS alerts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                severity VARCHAR(50) DEFAULT 'Info',
+                source VARCHAR(100) NOT NULL,
+                message TEXT NOT NULL,
+                status VARCHAR(50) DEFAULT 'Open',
+                snapshot_path VARCHAR(512),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                assigned_officer_id INT,
+                FOREIGN KEY (assigned_officer_id) REFERENCES users(id)
+            )
+        """)
+        
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                sender_id INT NOT NULL,
+                receiver_id INT,
+                content TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (sender_id) REFERENCES users(id),
+                FOREIGN KEY (receiver_id) REFERENCES users(id)
+            )
+        """)
+
         conn.commit()
         print("Schema update completed successfully!")
 
@@ -130,3 +183,4 @@ def update_schema():
 
 if __name__ == "__main__":
     update_schema()
+    ensure_columns()

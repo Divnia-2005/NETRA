@@ -309,6 +309,7 @@
         function handleCredentialResponse(response) {
             fetch("/auth/google/callback", {
                 method: "POST",
+                credentials: 'same-origin',
                 headers: {
                     "Content-Type": "application/json"
                 },

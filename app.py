@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response, make_response
 import time
+import os
+os.environ["OPENCV_LOG_LEVEL"] = "FATAL"
 import cv2
 import numpy as np
 import uuid
@@ -61,6 +63,13 @@ def get_db():
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super_secret_dev_key_123")
 
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 # ---------------- RAZORPAY CONFIG ----------------
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder") 
@@ -101,7 +110,7 @@ hog_detector.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 # Global state for crowd densities
 LATEST_CROWD_DATA = {i: {"name": f"CAM-0{i+1}", "density": 0} for i in range(8)}
 LAST_DB_ALERT_TIME = {i: 0 for i in range(8)} # Rate limit DB writes
-# Specific names as seen in JS/UI
+CROWD_THRESHOLD = 6 # Count > 5 to alert
 CAM_DISPLAY_NAMES = ["GATE-MAIN", "LOBBY-SEC", "CORRIDOR-A", "EXIT-WEST", 
                      "PARKING-01", "ROOF-SOUTH", "SERVER-02", "DOCK-B"]
 for i, name in enumerate(CAM_DISPLAY_NAMES):
@@ -112,19 +121,31 @@ os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
 class CameraStream:
     def __init__(self):
-        self.camera = cv2.VideoCapture(0)
+        self.current_index = 0
+        self._init_camera()
         self.lock = threading.Lock()
         self.last_frame = None
         self.last_rects = []
+        self.last_rects = []
         self.last_person_count = 0
+        self.processed_frame = None # Frame with common overlays
         self.is_running = True
+        self.error_count = 0
         self.thread = threading.Thread(target=self._update_frame, daemon=True)
         self.thread.start()
+
+    def _init_camera(self):
+        # Try DirectShow first on Windows as it's more stable than MSMF
+        self.camera = cv2.VideoCapture(self.current_index, cv2.CAP_DSHOW)
+        if not self.camera.isOpened():
+            # Suppress explicit spam
+            self.camera = cv2.VideoCapture(self.current_index)
 
     def _update_frame(self):
         while self.is_running:
             success, frame = self.camera.read()
             if success:
+                self.error_count = 0
                 # Optimized Detection: Resize for speed
                 small_frame = cv2.resize(frame, (400, int(frame.shape[0] * (400 / frame.shape[1]))))
                 (rects, weights) = hog_detector.detectMultiScale(small_frame, winStride=(8, 8), padding=(8, 8), scale=1.05)
@@ -135,16 +156,65 @@ class CameraStream:
                 for (x, y, w, h) in rects:
                     scaled_rects.append((int(x * scale), int(y * scale), int(w * scale), int(h * scale)))
 
+                # --- DRAW COMMON OVERLAYS ONCE ---
+                person_count = len(scaled_rects)
+                is_alert = person_count >= 5 # "Reaches 5 or more"
+                
+                display_frame = frame.copy()
+                status_color = (19, 236, 91) if not is_alert else (0, 0, 255)
+                
+                # Draw boxes
+                for (x, y, w, h) in scaled_rects:
+                    cv2.rectangle(display_frame, (x, y), (x + w, y + h), status_color, 2)
+                    cv2.putText(display_frame, "HUMAN", (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, status_color, 1)
+
                 with self.lock:
                     self.last_frame = frame.copy()
+                    self.processed_frame = display_frame
                     self.last_rects = scaled_rects
-                    self.last_person_count = len(scaled_rects)
+                    self.last_person_count = person_count
+
+                # --- GLOBAL ALERT LOGIC (RUN ONCE) ---
+                if is_alert:
+                    current_time = time.time()
+                    # Check cooldown across all cams (simplified)
+                    if current_time - LAST_DB_ALERT_TIME.get('global', 0) > 30:
+                        try:
+                            # Log as "NETRA-AI [GENERAL]"
+                            conn = get_db()
+                            cur = conn.cursor()
+                            alert_msg = f"CROWD ALERT: {person_count} tracked individuals detected by Netra AI."
+                            
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            snap_filename = f"crowd_alert_{timestamp}.jpg"
+                            snap_path = os.path.join(SNAPSHOT_DIR, snap_filename)
+                            cv2.imwrite(snap_path, frame)
+                            
+                            cur.execute("""
+                                INSERT INTO alerts (source, message, severity, status, created_at, snapshot_path)
+                                VALUES ('Netra-AI', %s, 'Warning', 'Open', NOW(), %s)
+                            """, (alert_msg, f"static/snapshots/{snap_filename}"))
+                            conn.commit()
+                            cur.close()
+                            conn.close()
+                            LAST_DB_ALERT_TIME['global'] = current_time
+                        except Exception as e:
+                            print(f"DEBUG: Alert Log Failed (Check MySQL): {e}")
+
+            else:
+                self.error_count += 1
+                if self.error_count > 15: 
+                    self.camera.release()
+                    time.sleep(2) 
+                    self.current_index = 1 if self.current_index == 0 else 0
+                    self._init_camera()
+                    self.error_count = 0
             time.sleep(0.01)
 
     def get_data(self):
         with self.lock:
-            if self.last_frame is not None:
-                return self.last_frame.copy(), self.last_rects, self.last_person_count
+            if self.processed_frame is not None:
+                return self.processed_frame.copy(), self.last_rects, self.last_person_count
         return None, [], 0
 
 # Global instance
@@ -161,66 +231,44 @@ def gen_frames(camera_index=0):
     stream = get_camera_stream()
     while True:
         frame, rects, person_count = stream.get_data()
+        
         if frame is None:
-            time.sleep(0.1)
+            # Sophisticated offline screen
+            offline_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            # Add grid
+            cv2.rectangle(offline_frame, (0,0), (640,480), (10,10,10), -1)
+            for i in range(0, 640, 40): cv2.line(offline_frame, (i, 0), (i, 480), (20, 20, 20), 1)
+            for i in range(0, 480, 40): cv2.line(offline_frame, (0, i), (640, i), (20, 20, 20), 1)
+            
+            cam_name = CAM_DISPLAY_NAMES[camera_index] if camera_index < len(CAM_DISPLAY_NAMES) else f"CAM-{camera_index}"
+            cv2.putText(offline_frame, "SIGNAL LOSS", (220, 220), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 150), 2)
+            cv2.putText(offline_frame, f"RETRYING: {cam_name}", (230, 260), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 100, 100), 1)
+            
+            ret, buffer = cv2.imencode('.jpg', offline_frame)
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            time.sleep(1)
             continue
             
-        # --- UI OVERLAY (Ported from netra_cv.py) ---
+        # --- UI OVERLAY (CAM SPECIFIC) ---
         cam_name = CAM_DISPLAY_NAMES[camera_index] if camera_index < len(CAM_DISPLAY_NAMES) else f"CAM-{camera_index}"
-        density = min(100, person_count * 20)
-        is_alert = density >= 80
-
-        # Update global data for API
-        if camera_index < 8:
-            LATEST_CROWD_DATA[camera_index]["density"] = density
-
-        # Header Box (Dark Green / Dark Red)
-        overlay_color = (0, 30, 0) if not is_alert else (0, 0, 50)
-        cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), overlay_color, -1)
+        is_alert = person_count >= 5
         
-        # Status Label
-        status_text = "SYSTEM STATUS: NORMAL" if not is_alert else "CROWD DENSITY ALERT!"
-        cv2.putText(frame, f"NETRA AI | {status_text}", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        # Header for specific camera
+        header_color = (17, 34, 16) if not is_alert else (16, 16, 50)
+        cv2.rectangle(frame, (0, 0), (frame.shape[1], 50), header_color, -1)
         
-        # Crowd Count Label
-        cv2.putText(frame, f"Count: {person_count}", (frame.shape[1] - 120, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (19, 236, 91), 1)
-
-        # Draw Bounding Boxes (Red for alert, Green for normal)
-        box_color = (0, 0, 255) if is_alert else (0, 255, 0)
-        for (x, y, w, h) in rects:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), box_color, 2)
-            cv2.putText(frame, "Person Detected", (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 1)
-
-        # Alert if density high (Simulate DB Alert)
-        if is_alert:
-             current_time = time.time()
-             if current_time - LAST_DB_ALERT_TIME.get(camera_index, 0) > 30:
-                 try:
-                     conn = get_db()
-                     cur = conn.cursor()
-                     alert_msg = f"CRITICAL: High Crowd Density ({density}%) detected at {cam_name}"
-                     # Immediate Snapshot
-                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                     snap_filename = f"alert_{cam_name}_{timestamp}.jpg"
-                     snap_path = os.path.join(SNAPSHOT_DIR, snap_filename)
-                     cv2.imwrite(snap_path, frame)
-                     
-                     cur.execute("""
-                         INSERT INTO alerts (source, message, severity, status, created_at, snapshot_path)
-                         VALUES (%s, %s, 'Critical', 'Open', NOW(), %s)
-                     """, (cam_name, alert_msg, f"static/snapshots/{snap_filename}"))
-                     conn.commit()
-                     cur.close()
-                     conn.close()
-                     LAST_DB_ALERT_TIME[camera_index] = current_time
-                     print(f"DEBUG: Saved snapshot {snap_path}")
-                 except Exception as e:
-                     print(f"Error logging crowd alert: {e}")
+        status_text = "NOMINAL" if not is_alert else "!!! CROWDED !!!"
+        status_color = (19, 236, 91) if not is_alert else (0, 0, 255)
+        
+        cv2.putText(frame, f"{cam_name}", (20, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        cv2.putText(frame, status_text, (frame.shape[1] // 2 - 40, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.6, status_color, 2)
+        cv2.putText(frame, f"COUNT: {person_count}", (frame.shape[1] - 130, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
         ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+               b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        time.sleep(0.04) # Limit FPS to save bandwidth/connections
 
 @app.route("/api/stop_buzzer", methods=["POST"])
 def stop_buzzer():
@@ -313,7 +361,7 @@ def login():
         
         # Verify Password (Hash or Lazy Migration)
         valid_password = False
-        if user:
+        if user and user.get('password'):
             if check_password_hash(user['password'], password):
                 valid_password = True
             elif user['password'] == password:
@@ -367,7 +415,7 @@ def login():
 def google_callback():
     data = request.get_json()
     token = data.get("token")
-    print(f"DEBUG: Using Google Client ID: {GOOGLE_CLIENT_ID}")
+    # print(f"DEBUG: Using Google Client ID: {GOOGLE_CLIENT_ID}")
 
     if not GOOGLE_CLIENT_ID:
         print("❌ Error: GOOGLE_CLIENT_ID is None in app.py!")
@@ -451,10 +499,17 @@ def google_callback():
 
 
 # ---------------- LOGOUT ----------------
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    response = make_response(redirect(url_for("landing")))
+    # Kill the session cookie explicitly
+    response.delete_cookie("session")
+    # Ensure this redirect is never cached
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # ---------------- FORGOT PASSWORD ----------------
 @app.route("/forgot-password", methods=["GET", "POST"])
@@ -801,7 +856,7 @@ def dashboard_admin():
     cur.close()
     conn.close()
 
-    return render_template("dashboard_admin.html", 
+    response = make_response(render_template("dashboard_admin.html", 
                            pending_users=pending_users, 
                            active_users=active_users, 
                            blocked_users=blocked_users, 
@@ -820,7 +875,12 @@ def dashboard_admin():
                            fines_stats=fines_stats,
                            all_cases=all_cases,
                            public_entries=public_entries,
-                           entry_stats=entry_stats)
+                           entry_stats=entry_stats))
+    
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.route("/dashboard_officer")
 def dashboard_officer():
@@ -860,7 +920,11 @@ def dashboard_officer():
     cur.close()
     conn.close()
 
-    return render_template("dashboard_officer.html", alerts=alerts, messages=messages, recipients=recipients, my_cases=my_cases)
+    response = make_response(render_template("dashboard_officer.html", alerts=alerts, messages=messages, recipients=recipients, my_cases=my_cases))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 
@@ -2310,6 +2374,53 @@ def quick_action():
     conn.close()
     
     return jsonify({"success": True, "message": alert_msg})
+
+
+# ---------------- SYSTEM CONFIG ----------------
+@app.route("/api/get_system_config")
+def get_system_config():
+    if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT config_key, config_value FROM system_config")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    config = {row['config_key']: row['config_value'] for row in rows}
+    # Ensure keys exist for frontend
+    defaults = {'ai_scan': 'true', 'lockdown': 'false', 'alert_msg': 'System Alert: Please remain calm.'}
+    for k, v in defaults.items():
+        if k not in config:
+            config[k] = v
+            
+    return jsonify(config)
+
+@app.route("/api/update_system_config", methods=["POST"])
+def update_system_config():
+    if "user" not in session or session["user"]["role"] != "admin":
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    
+    data = request.get_json()
+    conn = get_db()
+    cur = conn.cursor()
+    
+    try:
+        for key, value in data.items():
+            cur.execute("""
+                INSERT INTO system_config (config_key, config_value) 
+                VALUES (%s, %s) 
+                ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)
+            """, (key, str(value)))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 
 if __name__ == "__main__":

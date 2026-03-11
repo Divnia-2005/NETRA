@@ -12,6 +12,22 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
   <script>
+    function logout() {
+      // Explicitly kill all video streams to free up browser connection limits
+      // Using .remove() is safe and guarantees the stream connection is dropped
+      // without triggering an empty URL request like img.src = '' did.
+      document.querySelectorAll('img[src*="/video_feed/"]').forEach(img => {
+          img.parentNode.removeChild(img);
+      });
+      
+      if (window.stop) window.stop();
+      
+      // Small delay allows browser to close TCP connections before new request
+      setTimeout(() => {
+          window.location.href = '/logout';
+      }, 150);
+    }
+
     // Stats Loading
     async function loadOfficerStats() {
       try {
@@ -61,7 +77,7 @@
     async function updateCrowdData() {
       if (!crowdChartInstance) return;
       try {
-        const res = await fetch('/api/crowd_status'); // Used existing endpoint name
+        const res = await fetch('/api/crowd_status');
         const data = await res.json();
 
         const labels = data.map(d => d.name);
@@ -85,7 +101,6 @@
     async function logPatrol() {
       if (!confirm("Log your current location as Patrol Check-in?")) return;
 
-      // Mock Location
       const loc = "Lat: 28.61, Lng: 77.21 (GPS Mock)";
 
       try {
@@ -98,9 +113,15 @@
       } catch (e) { alert("Error logging patrol"); }
     }
 
+
+    async function loadSettings() {
+      // Add settings initialization code here
+    }
+
     window.addEventListener('load', () => {
       loadOfficerStats();
       initCrowdChart();
+      loadSettings(); // Load settings on page load
     });
   </script>
   <!-- Google Fonts: Outfit -->
@@ -391,112 +412,122 @@
       </div>
     </div>
 
-    <!-- Notification Bell -->
-    <div class="relative mr-4 cursor-pointer"
-      onclick="markSeen(); showSection('messages', document.querySelector('[onclick*=\'messages\']'));">
-      <svg id="notificationBell" xmlns="http://www.w3.org/2000/svg"
-        class="h-6 w-6 text-gray-400 transition-colors duration-300" fill="none" viewBox="0 0 24 24"
-        stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-      <!-- Red Dot -->
-      <span id="notificationDot"
-        class="hidden absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-[#102216] bg-red-500"></span>
-    </div>
+
   </header>
 
   <!-- SIDEBAR -->
   <aside id="sidebar" class="fixed top-0 left-0 z-50 w-64 h-full
-         bg-sidebar p-4 space-y-6
+         bg-sidebar p-4 flex flex-col overflow-x-hidden
          transform -translate-x-full
-         transition-transform duration-300 overflow-y-auto">
+         transition-transform duration-300">
 
-
-    <div>
-      <h2 class="text-xl font-bold accent mb-6">NETRA Officer</h2>
-      <!-- OFFICER PROFILE CARD -->
-      <div class="flex items-center gap-3 bg-[#1a2e22] p-3 rounded">
-        <div class="relative">
-          <img id="officerPic" src="https://via.placeholder.com/60"
-            class="w-14 h-14 rounded-full object-cover border border-green-400">
-          <label for="profileUpload"
-            class="absolute bottom-0 right-0 bg-green-500 text-black rounded-full p-1 cursor-pointer hover:bg-white transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
-          </label>
-          <input type="file" id="profileUpload" class="hidden" accept="image/*" onchange="updateOfficerPic(event)">
-        </div>
-        <div>
-          <h3 id="officerName" class="font-bold text-white leading-tight">Officer</h3>
-          <p class="text-[0.65rem] text-green-400 uppercase tracking-wider">Active Duty</p>
-        </div>
+    <h2 class="text-xl font-bold accent mb-6">NETRA Officer</h2>
+    <!-- OFFICER PROFILE CARD -->
+    <div class="flex items-center gap-3 bg-[#1a2e22] p-3 rounded">
+      <div class="relative">
+        <img id="officerPic" src="https://via.placeholder.com/60"
+          class="w-14 h-14 rounded-full object-cover border border-green-400">
+        <label for="profileUpload"
+          class="absolute bottom-0 right-0 bg-green-500 text-black rounded-full p-1 cursor-pointer hover:bg-white transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+        </label>
+        <input type="file" id="profileUpload" class="hidden" accept="image/*" onchange="updateOfficerPic(event)">
       </div>
-
-      <!-- NEW: Patrol Check-in -->
-      <button onclick="openPatrolModal()"
-        class="w-full bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 border border-blue-500/50 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 group">
-        <span>📍 Log Patrol Point</span>
-      </button>
-
-      <!-- NEW: Mini Stats -->
-      <div class="grid grid-cols-2 gap-2 text-center text-xs">
-        <div class="glass p-2 rounded">
-          <p class="text-gray-400">Fines Today</p>
-          <p id="statFines" class="text-lg font-bold text-white">--</p>
-        </div>
-        <div class="glass p-2 rounded">
-          <p class="text-gray-400">Resolved</p>
-          <p id="statAlerts" class="text-lg font-bold text-green-400">--</p>
-        </div>
+      <div>
+        <h3 id="officerName" class="font-bold text-white leading-tight">Officer</h3>
+        <p class="text-[0.65rem] text-green-400 uppercase tracking-wider" data-i18n="active_duty">Active Duty</p>
       </div>
-
-      <nav class="space-y-2 mt-4">
-        <button onclick="showSection('overview', this)" class="nav-btn active">
-          <span class="mr-2">📊</span> <span data-i18n="overview">Overview</span>
-        </button>
-        <button class="nav-btn" onclick="showSection('cases', this)" data-i18n="cases">Case Files</button>
-        <button class="nav-btn" onclick="showSection('map', this)" data-i18n="tactical_map">Tactical Map</button>
-        <button class="nav-btn" onclick="showSection('alerts', this)" data-i18n="alerts">System Alerts</button>
-        <button class="nav-btn" onclick="showSection('reports', this)" data-i18n="reports">Reports</button>
-        <button class="nav-btn" onclick="showSection('messages', this)" data-i18n="messages">Messages</button>
-
-
-        <button class="nav-btn text-blue-400" onclick="showSection('verify_entry', this)">
-          <span>🎟️ Verify Entry</span>
-        </button>
-        <button class="nav-btn" onclick="showSection('settings', this)" data-i18n="settings">Settings</button>
-        <button class="nav-btn" onclick="showSection('help', this)" data-i18n="help">Help & FAQ</button>
-      </nav>
     </div>
-    <button class="nav-btn" onclick="showSection('profile', this)" data-i18n="profile">
-      Profile
+
+    <!-- NEW: Patrol Check-in -->
+    <button onclick="openPatrolModal()"
+      class="w-full bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 border border-blue-500/50 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 group">
+      <span class="mr-1">📍</span> <span data-i18n="log_patrol">Log Patrol Point</span>
     </button>
 
-    <a href="/logout" data-i18n="logout"
-      class="block w-full text-left p-3 mt-8 bg-red-900/30 text-red-400 rounded hover:bg-red-900/50 hover:text-red-300 font-bold transition-colors">
-      Logout
-    </a>
+    <!-- NEW: Mini Stats -->
+    <div class="grid grid-cols-2 gap-2 text-center text-xs">
+      <div class="glass p-2 rounded">
+        <p class="text-gray-400" data-i18n="fines_today">Fines Today</p>
+        <p id="statFines" class="text-lg font-bold text-white">--</p>
+      </div>
+      <div class="glass p-2 rounded">
+        <p class="text-gray-400" data-i18n="resolved">Resolved</p>
+        <p id="statAlerts" class="text-lg font-bold text-green-400">--</p>
+      </div>
+    </div>
+
+    <nav class="space-y-1 mt-4 flex-1 overflow-y-auto custom-scrollbar-chat pr-2 min-h-0">
+      <button onclick="showSection('overview', this)" class="nav-btn active">
+        <span class="mr-2">📊</span> <span data-i18n="overview">Overview</span>
+      </button>
+      <button class="nav-btn" onclick="showSection('cases', this)">
+        <span class="mr-2">📁</span> <span data-i18n="case_files">Case Files</span>
+      </button>
+      <button class="nav-btn" onclick="showSection('map', this)">
+        <span class="mr-2">🗺️</span> <span data-i18n="tactical_map">Tactical Map</span>
+      </button>
+      <button class="nav-btn" onclick="showSection('alerts', this)">
+        <span class="mr-2">🔔</span> <span data-i18n="alerts">System Alerts</span>
+      </button>
+      <button class="nav-btn" onclick="showSection('reports', this)">
+        <span class="mr-2">📄</span> <span data-i18n="reports">Reports</span>
+      </button>
+      <button class="nav-btn" onclick="showSection('messages', this)">
+        <span class="mr-2">💬</span> <span data-i18n="messages">Messages</span>
+      </button>
+      <button class="nav-btn text-blue-400" onclick="showSection('verify_entry', this)">
+        <span class="mr-2">🎟️</span> <span data-i18n="verify_entry">Verify Entry</span>
+      </button>
+      <button class="nav-btn" onclick="showSection('settings', this)">
+        <span class="mr-2">⚙️</span> <span data-i18n="settings">Settings</span>
+      </button>
+      <button class="nav-btn mt-4" onclick="showSection('profile', this)">
+        <span class="mr-2">👤</span> <span data-i18n="profile">Profile</span>
+      </button>
+    </nav>
+
+    <!-- Sidebar Bottom Actions -->
+    <div class="mt-auto pt-4 border-t border-white/10 relative z-[60]">
+      <button onclick="logout()"
+        class="w-full group bg-red-500/10 hover:bg-red-500 border border-red-500/30 hover:border-red-500 p-3 rounded-xl transition-all duration-300 flex items-center justify-between overflow-hidden relative cursor-pointer block no-underline">
+        <div
+          class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000">
+        </div>
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-500 group-hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 16l4-4m0 0l-4 4m4-4H3m6 0v-3a4 4 0 00-4-4H7a4 4 0 00-4 4v3m6 0v6a4 4 0 01-4 4H7a4 4 0 01-4-4v-6" />
+            </svg>
+          </div>
+          <span class="text-white font-bold" data-i18n="logout">Logout</span>
+        </div>
+      </button>
+    </div>
   </aside>
 
   <!-- MAIN CONTENT -->
   <main class="flex-1 p-6 overflow-y-auto pt-16">
 
-    <!-- DASHBOARD -->
-    <section id="dashboard" class="section">
+    <!-- OVERVIEW -->
+    <section id="overview" class="section">
       <h1 class="text-3xl font-bold mb-1 tracking-tight"><span data-i18n="command_center">Command Center</span></h1>
-      <p class="text-sm text-[#a7f3d0] mb-6">System Online</p>
+      <p class="text-sm text-[#a7f3d0] mb-6" data-i18n="system_online">System Online</p>
 
       <!-- QUICK ACTIONS -->
       <div class="flex gap-4 mb-6">
         <button onclick="triggerAction('alarm')"
           class="flex-1 bg-red-600/20 text-red-400 border border-red-600 px-6 py-4 rounded-xl hover:bg-red-600 hover:text-white transition font-bold text-lg"
           data-i18n="trigger_alarm">Trigger Alarm</button>
-        
+
         <button onclick="stopBuzzer()"
-          class="flex-1 bg-blue-600/20 text-blue-400 border border-blue-600 px-6 py-4 rounded-xl hover:bg-blue-600 hover:text-white transition font-bold text-lg">
+          class="flex-1 bg-blue-600/20 text-blue-400 border border-blue-600 px-6 py-4 rounded-xl hover:bg-blue-600 hover:text-white transition font-bold text-lg" data-i18n="stop_buzzer">
           Stop Buzzer
         </button>
       </div>
@@ -506,7 +537,7 @@
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold" data-i18n="live_surveillance">Live Surveillance</h2>
         <button onclick="enterFullScreen()"
-          class="text-xs text-green-400 border border-green-500/30 px-2 py-1 rounded hover:bg-green-500/10">Full
+          class="text-xs text-green-400 border border-green-500/30 px-2 py-1 rounded hover:bg-green-500/10" data-i18n="full_view">Full
           View</button>
       </div>
 
@@ -517,8 +548,8 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <img src="/video_feed/0"
-            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 1">
+          <img src="/video_feed/0" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition"
+            alt="Cam 1">
         </div>
         <!-- Cam 2 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-02 [LOBBY]')">
@@ -526,8 +557,8 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <img src="/video_feed/1"
-            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 2">
+          <img src="/video_feed/1" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition"
+            alt="Cam 2">
         </div>
         <!-- Cam 3 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-03 [CORRIDOR]')">
@@ -535,8 +566,8 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <img src="/video_feed/2"
-            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 3">
+          <img src="/video_feed/2" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition"
+            alt="Cam 3">
         </div>
         <!-- Cam 4 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-04 [EXIT]')">
@@ -544,8 +575,8 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <img src="/video_feed/3"
-            class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition" alt="Cam 4">
+          <img src="/video_feed/3" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition"
+            alt="Cam 4">
         </div>
       </div>
 
@@ -554,25 +585,33 @@
         <!-- Cam 5 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-05 [PARKING]')">
           <div class="cam-overlay">CAM-05 [PARKING]</div>
-          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> LIVE
+          </div>
           <img src="/video_feed/4" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
         </div>
         <!-- Cam 6 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-06 [ROOF]')">
           <div class="cam-overlay">CAM-06 [ROOF]</div>
-          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> LIVE
+          </div>
           <img src="/video_feed/5" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
         </div>
         <!-- Cam 7 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-07 [SERVER]')">
           <div class="cam-overlay">CAM-07 [SERVER]</div>
-          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> LIVE
+          </div>
           <img src="/video_feed/6" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
         </div>
         <!-- Cam 8 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-08 [DOCK]')">
           <div class="cam-overlay">CAM-08 [DOCK]</div>
-          <div class="rec-indicator"><div class="rec-dot"></div> LIVE</div>
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> LIVE
+          </div>
           <img src="/video_feed/7" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition">
         </div>
       </div>
@@ -581,11 +620,10 @@
       <div class="mb-6">
         <div class="flex justify-between items-center mb-3">
           <h2 class="text-lg font-bold text-orange-400 flex items-center gap-2">
-            <span class="animate-pulse">⚠️</span> Suspicious Activity Alerts
+            <span class="animate-pulse">⚠️</span> <span data-i18n="suspicious_alerts">Suspicious Activity Alerts</span>
           </h2>
           <button onclick="simulateAIAlert()"
-            class="text-xs border border-orange-500/30 text-orange-400 px-2 py-1 rounded hover:bg-orange-500/10">Simulate
-            Detection</button>
+            class="text-xs border border-orange-500/30 text-orange-400 px-2 py-1 rounded hover:bg-orange-500/10" data-i18n="simulate_detection">Simulate Detection</button>
         </div>
 
         <div id="aiAlertsPanel" class="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
@@ -598,15 +636,14 @@
             <h3 class="font-bold text-sm text-white mb-1">Crowd Surge Detected</h3>
             <p class="text-xs text-gray-400 mb-3">Rapid movement > 3m/s detected in narrow exit corridor.</p>
             <div class="h-24 bg-black rounded mb-3 overflow-hidden relative">
-              <img src="/video_feed/2"
-                class="w-full h-full object-cover opacity-80">
+              <img src="/video_feed/2" class="w-full h-full object-cover opacity-80">
               <div class="absolute inset-0 border-2 border-red-500 animate-pulse"></div>
             </div>
             <div class="flex gap-2">
               <button onclick="this.parentElement.parentElement.remove()"
-                class="flex-1 bg-white/10 hover:bg-white/20 text-xs py-1.5 rounded">Acknowledge</button>
+                class="flex-1 bg-white/10 hover:bg-white/20 text-xs py-1.5 rounded" data-i18n="acknowledge">Acknowledge</button>
               <button onclick="triggerAction('broadcast')"
-                class="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs py-1.5 rounded font-bold">Escalate</button>
+                class="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs py-1.5 rounded font-bold" data-i18n="escalate">Escalate</button>
             </div>
           </div>
         </div>
@@ -617,15 +654,15 @@
     <!-- RECORD CONSOLE (Dynamic) -->
     <section id="alerts" class="section hidden">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold">Records Console</h2>
+        <h2 class="text-xl font-bold" data-i18n="records_console">Records Console</h2>
         <div class="flex gap-2">
-          <input type="text" id="recordSearch" onkeyup="filterRecords()" placeholder="Search keywords..."
+          <input type="text" id="recordSearch" onkeyup="filterRecords()" placeholder="Search keywords..." data-i18n="search_placeholder"
             class="glass text-white px-3 py-1 rounded border border-green-800 text-sm">
           <select id="recordFilter" onchange="filterRecords()"
             class="glass text-white px-3 py-1 rounded border border-green-800 text-sm">
-            <option value="all">All Status</option>
-            <option value="unresolved">Unresolved</option>
-            <option value="resolved">Resolved</option>
+            <option value="all" data-i18n="all_status">All Status</option>
+            <option value="unresolved" data-i18n="unresolved">Unresolved</option>
+            <option value="resolved" data-i18n="resolved">Resolved</option>
           </select>
         </div>
       </div>
@@ -634,13 +671,13 @@
         <table class="w-full text-sm text-left">
           <thead class="text-xs uppercase bg-white/5 text-gray-400 border-b border-white/5">
             <tr>
-              <th class="px-4 py-3">ID</th>
-              <th class="px-4 py-3">Time</th>
-              <th class="px-4 py-3">Source</th>
-              <th class="px-4 py-3">Message</th>
-              <th class="px-4 py-3">Severity</th>
-              <th class="px-4 py-3">Status</th>
-              <th class="px-4 py-3">Action</th>
+              <th class="px-4 py-3" data-i18n="id">ID</th>
+              <th class="px-4 py-3" data-i18n="time">Time</th>
+              <th class="px-4 py-3" data-i18n="source">Source</th>
+              <th class="px-4 py-3" data-i18n="message">Message</th>
+              <th class="px-4 py-3" data-i18n="severity">Severity</th>
+              <th class="px-4 py-3" data-i18n="status">Status</th>
+              <th class="px-4 py-3" data-i18n="action">Action</th>
             </tr>
           </thead>
           <tbody id="recordsTableBody" class="divide-y divide-white/5">
@@ -680,7 +717,7 @@
                 <!-- Share Button -->
                 <button onclick="shareAlert('{{ alert.message|e }}', '{{ alert.source|e }}')"
                   class="ml-2 text-blue-400 hover:text-white border border-blue-500/30 px-2 py-1 rounded text-xs transition focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                  aria-label="Share Alert" title="Share Alert">
+                  aria-label="Share Alert" title="Share Alert" data-i18n="share">
                   Share
                 </button>
 
@@ -721,30 +758,25 @@
 
     <!-- REPORTS -->
     <section id="reports" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Reports</h2>
+      <h2 class="text-xl font-bold mb-4" data-i18n="reports">Reports</h2>
       <div class="glass p-4 rounded flex justify-between items-center">
         <div>
-          <h3 class="font-bold text-lg">Download Reports</h3>
-          <p class="text-sm text-gray-400">Export incident logs and alerts to Excel.</p>
+          <h3 class="font-bold text-lg" data-i18n="download_reports">Download Reports</h3>
+          <p class="text-sm text-gray-400" data-i18n="export_hint">Export incident logs and alerts to Excel.</p>
         </div>
         <button onclick="exportReports()"
-          class="bg-[#13ec5b] text-black px-4 py-2 rounded hover:bg-green-400 font-bold">
+          class="bg-[#13ec5b] text-black px-4 py-2 rounded hover:bg-green-400 font-bold" data-i18n="export_excel">
           Export to Excel
         </button>
       </div>
     </section>
-    
-    <!-- HELP & FAQ -->
-    <section id="help" class="section hidden">
-        <h1 class="text-3xl font-bold mb-6 tracking-tight">Help & FAQ</h1>
-        {% include 'component_help.html' %}
-    </section>
+
 
     <!-- MESSAGES -->
     <section id="messages" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Messages</h2>
+      <h2 class="text-xl font-bold mb-4" data-i18n="messages">Messages</h2>
       <div class="glass p-6 rounded-xl border border-white/5 mb-6">
-        <h3 class="panel-title mb-4 font-bold text-emerald-400">Comms with HQ</h3>
+        <h3 class="panel-title mb-4 font-bold text-emerald-400" data-i18n="comms_hq">Comms with HQ</h3>
 
         <!-- Compose -->
         <div class="mb-4 space-y-2">
@@ -760,10 +792,10 @@
               {% endfor %}
             </select>
 
-            <input id="msgContent" type="text" placeholder="Type a message..."
+            <input id="msgContent" type="text" placeholder="Type a message..." data-i18n="type_message"
               class="glass p-2 rounded text-sm border-white/10 w-full text-white placeholder-gray-500 focus:outline-none focus:border-green-500">
             <button onclick="sendMessage()"
-              class="bg-gradient-to-r from-green-500 to-emerald-600 text-black px-4 py-2 rounded hover:from-green-400 hover:to-emerald-500 font-bold shadow-lg shadow-green-500/20 transition-all duration-300">
+              class="bg-gradient-to-r from-green-500 to-emerald-600 text-black px-4 py-2 rounded hover:from-green-400 hover:to-emerald-500 font-bold shadow-lg shadow-green-500/20 transition-all duration-300" data-i18n="send">
               Send
             </button>
           </div>
@@ -801,25 +833,25 @@
 
     <!-- VERIFY ENTRY -->
     <section id="verify_entry" class="section hidden">
-      <h2 class="text-xl font-bold mb-4">Verify Visitor Entry</h2>
+      <h2 class="text-xl font-bold mb-4" data-i18n="verify_entry">Verify Visitor Entry</h2>
       <div class="glass p-8 rounded-xl max-w-lg mx-auto border border-white/10">
-        <p class="text-gray-400 mb-6 text-center">Search visitor database by Name and Phone Number.</p>
+        <p class="text-gray-400 mb-6 text-center" data-i18n="verify_hint">Search visitor database by Name and Phone Number.</p>
 
         <div class="space-y-4 mb-6">
           <div>
-            <label class="text-xs text-gray-400 ml-1">Visitor Name</label>
-            <input id="vizName" type="text" placeholder="John Doe"
+            <label class="text-xs text-gray-400 ml-1" data-i18n="visitor_name">Visitor Name</label>
+            <input id="vizName" type="text" placeholder="John Doe" data-i18n="visitor_name"
               class="w-full glass p-3 rounded text-white border-white/20 focus:border-green-500 outline-none">
           </div>
           <div>
-            <label class="text-xs text-gray-400 ml-1">Phone Number</label>
-            <input id="vizPhone" type="text" placeholder="9876543210"
+            <label class="text-xs text-gray-400 ml-1" data-i18n="phone_number">Phone Number</label>
+            <input id="vizPhone" type="text" placeholder="9876543210" data-i18n="phone_number"
               class="w-full glass p-3 rounded text-white border-white/20 focus:border-green-500 outline-none">
           </div>
         </div>
 
         <button onclick="verifyVisitor()"
-          class="w-full bg-[#13ec5b] text-black px-8 py-3 rounded-xl font-bold text-lg hover:bg-green-400 shadow-lg shadow-green-500/30 transition transform hover:scale-[1.02]">
+          class="w-full bg-[#13ec5b] text-black px-8 py-3 rounded-xl font-bold text-lg hover:bg-green-400 shadow-lg shadow-green-500/30 transition transform hover:scale-[1.02]" data-i18n="search_verify">
           Search & Verify
         </button>
 
@@ -829,25 +861,25 @@
 
     <section id="cases" class="section hidden">
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold">My Case Files</h2>
+        <h2 class="text-xl font-bold" data-i18n="my_cases">My Case Files</h2>
         <button onclick="openCreateCaseModal()"
           class="bg-[#13ec5b] text-black px-4 py-2 rounded hover:bg-green-400 font-bold shadow-lg shadow-green-500/20 flex items-center gap-2">
-          <span>+</span> Create New Case
+          <span>+</span> <span data-i18n="create_case">Create New Case</span>
         </button>
       </div>
 
       <div class="glass p-6 rounded-xl border border-white/5">
-        <h3 class="panel-title mb-4 font-bold text-blue-400">Assigned Investigations</h3>
+        <h3 class="panel-title mb-4 font-bold text-blue-400" data-i18n="assigned_investigations">Assigned Investigations</h3>
 
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead>
               <tr class="text-gray-400 border-b border-gray-700">
-                <th class="py-3 px-4">Case ID</th>
-                <th class="py-3 px-4">Title</th>
-                <th class="py-3 px-4">Status</th>
-                <th class="py-3 px-4">Created Date</th>
-                <th class="py-3 px-4">Action</th>
+                <th class="py-3 px-4" data-i18n="id">Case ID</th>
+                <th class="py-3 px-4" data-i18n="case_title">Title</th>
+                <th class="py-3 px-4" data-i18n="status">Status</th>
+                <th class="py-3 px-4" data-i18n="created_date">Created Date</th>
+                <th class="py-3 px-4" data-i18n="action">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -865,7 +897,7 @@
                 <td class="py-3 px-4 text-gray-400">{{ case.created_at }}</td>
                 <td class="py-3 px-4">
                   <button onclick="openCaseDetails('{{ case.case_id }}')"
-                    class="text-blue-400 hover:text-blue-300 text-xs border border-blue-500/30 px-2 py-1 rounded">
+                    class="text-blue-400 hover:text-blue-300 text-xs border border-blue-500/30 px-2 py-1 rounded" data-i18n="view_details">
                     View Details
                   </button>
                 </td>
@@ -886,26 +918,26 @@
     <div id="createCaseModal"
       class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
       <div class="glass p-8 rounded-2xl max-w-lg w-full border border-green-500/30 shadow-2xl relative">
-        <h2 class="text-2xl font-bold text-white mb-6">Create New Investigation</h2>
+        <h2 class="text-2xl font-bold text-white mb-6" data-i18n="new_investigation">Create New Investigation</h2>
 
         <div class="space-y-4">
           <div>
-            <label class="text-sm text-gray-400 block mb-1">Case Title</label>
-            <input id="caseTitle" type="text" placeholder="e.g. Suspicious Activity at Gate 4"
+            <label class="text-sm text-gray-400 block mb-1" data-i18n="case_title">Case Title</label>
+            <input id="caseTitle" type="text" placeholder="e.g. Suspicious Activity at Gate 4" data-i18n="case_title"
               class="w-full glass p-3 rounded text-white border-white/10 focus:border-green-500 outline-none">
           </div>
 
           <div>
-            <label class="text-sm text-gray-400 block mb-1">Description / Initial Report</label>
-            <textarea id="caseDesc" rows="4" placeholder="Describe the incident details..."
+            <label class="text-sm text-gray-400 block mb-1" data-i18n="incident_report">Description / Initial Report</label>
+            <textarea id="caseDesc" rows="4" placeholder="Describe the incident details..." data-i18n="incident_report"
               class="w-full glass p-3 rounded text-white border-white/10 focus:border-green-500 outline-none"></textarea>
           </div>
 
           <div class="flex gap-4 mt-8 pt-4 border-t border-white/10">
             <button onclick="closeCreateCaseModal()"
-              class="flex-1 py-3 rounded border border-gray-600 hover:bg-gray-800 text-gray-400">Cancel</button>
+              class="flex-1 py-3 rounded border border-gray-600 hover:bg-gray-800 text-gray-400" data-i18n="cancel">Cancel</button>
             <button onclick="createCase()"
-              class="flex-1 py-3 rounded bg-green-600 hover:bg-green-500 text-white font-bold shadow-lg shadow-green-500/30">Create
+              class="flex-1 py-3 rounded bg-green-600 hover:bg-green-500 text-white font-bold shadow-lg shadow-green-500/30" data-i18n="create_case">Create
               Case</button>
           </div>
         </div>
@@ -941,10 +973,10 @@
           <!-- Evidence Section -->
           <div>
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-bold text-blue-400">Evidence Locker</h3>
+              <h3 class="text-lg font-bold text-blue-400" data-i18n="evidence_locker">Evidence Locker</h3>
               <label for="evidenceUpload"
                 class="cursor-pointer bg-blue-600/20 text-blue-400 border border-blue-600 px-4 py-2 rounded hover:bg-blue-600 hover:text-white transition flex items-center gap-2">
-                <span>⬆</span> Upload Evidence
+                <span>⬆</span> <span data-i18n="upload_evidence">Upload Evidence</span>
               </label>
               <input type="file" id="evidenceUpload" class="hidden" onchange="handleEvidenceSelection(this)">
             </div>
@@ -987,240 +1019,192 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- SETTINGS -->
-      <section id="settings" class="section hidden">
-        <h2 class="text-xl font-bold mb-4">Settings</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-          <!-- System Preferences -->
-          <div class="glass p-6 rounded-xl border border-white/5">
-            <h3 class="font-bold text-lg mb-4 text-blue-400">System Preferences</h3>
-
-            <div class="flex justify-between items-center mb-4">
-              <div>
-                <p class="text-white text-sm font-bold">Push Notifications</p>
-                <p class="text-xs text-gray-500">Receive alerts for critical incidents.</p>
-              </div>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="settNotif" class="sr-only peer" checked>
-                <div
-                  class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600">
+    <!-- SETTINGS -->
+    <section id="settings" class="section hidden">
+      <div class="max-w-4xl mx-auto space-y-8">
+        <h2 class="text-3xl font-bold tracking-tight">Settings</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="glass p-6 rounded-2xl border border-white/5 space-y-6">
+            <h3 class="text-sm font-bold text-blue-400 uppercase tracking-widest">Preferences</h3>
+            <div class="space-y-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="font-bold">Notifications</p>
+                  <p class="text-xs text-gray-500">Alerts for task updates</p>
                 </div>
-              </label>
-            </div>
-
-            <div class="flex justify-between items-center mb-4">
-              <div>
-                <p class="text-white text-sm font-bold">Dark Mode</p>
-                <p class="text-xs text-gray-500">Enable high-contrast dark theme.</p>
+                <input type="checkbox" id="settNotif" class="w-5 h-5 accent-green-500" checked>
               </div>
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="settDark" class="sr-only peer" checked onchange="toggleDarkMode(this)">
-                <div
-                  class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="font-bold">High Contrast</p>
+                  <p class="text-xs text-gray-500">Darker dashboard theme</p>
                 </div>
-              </label>
-            </div>
-
-            <div class="mt-6">
-              <label class="block mb-2 text-sm text-gray-400">Alert Volume</label>
-              <input id="settVol" type="range" class="w-full accent-green-500 rounded-lg cursor-pointer bg-gray-700"
-                value="80">
+                <input type="checkbox" id="settDark" class="w-5 h-5 accent-blue-500" checked
+                  onchange="toggleDarkMode(this)">
+              </div>
             </div>
           </div>
-
-          <!-- Display -->
-          <div class="glass p-6 rounded-xl border border-white/5">
-            <h3 class="font-bold text-lg mb-4 text-purple-400">Display</h3>
-            <label class="block text-sm text-gray-400 mb-2">Dashboard Density</label>
-            <select id="settDensity" class="w-full glass p-2 rounded text-white border-white/10 bg-black mb-4">
-              <option value="comfort">Comfort (Default)</option>
-              <option value="compact">Compact</option>
-            </select>
-
-            <button onclick="saveSettings()"
-              class="mt-4 w-full bg-[#13ec5b] text-black py-2 rounded font-bold hover:bg-green-400 shadow-lg shadow-green-500/20">
-              Save Preferences
-            </button>
+          <div class="glass p-6 rounded-2xl border border-white/5 space-y-6">
+            <h3 class="text-sm font-bold text-purple-400 uppercase tracking-widest">Controls</h3>
+            <div class="space-y-4">
+              <label class="block">
+                <span class="text-xs text-gray-500">Alert Volume</span>
+                <input id="settVol" type="range" class="w-full" value="80">
+              </label>
+              <button onclick="saveSettings()"
+                class="w-full bg-[#13ec5b] text-black font-bold py-3 rounded-xl hover:bg-green-400 transition">
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-
-
-      <!-- PROFILE -->
-      <section id="profile" class="section hidden flex justify-center">
-        <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-          <!-- Profile Card -->
-          <div class="glass p-8 rounded-2xl border border-green-500/20 relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-bl-full pointer-events-none"></div>
-            <h2 class="text-xl font-bold mb-6">Officer Profile</h2>
-
-            <div class="flex items-center gap-6 mb-8">
-              <div class="relative group">
-                <img id="officerPicPreview" src="https://via.placeholder.com/120"
-                  class="w-24 h-24 rounded-full object-cover border-2 border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
-                <label
-                  class="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition cursor-pointer">
-                  <span class="text-xs text-white font-bold">Upload</span>
-                  <input type="file" accept="image/*" class="hidden" onchange="updateOfficerPic(event)">
-                </label>
-              </div>
+    <!-- PROFILE -->
+    <section id="profile" class="section hidden">
+      <div class="max-w-4xl mx-auto space-y-8">
+        <h2 class="text-3xl font-bold tracking-tight">My Profile</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="glass p-8 rounded-3xl border border-green-500/10 space-y-8 relative overflow-hidden">
+            <div class="flex items-center gap-6">
+              <img id="officerPicPreview" src="https://via.placeholder.com/120"
+                class="w-24 h-24 rounded-full object-cover border-2 border-green-400 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
               <div>
-                <h3 class="text-2xl font-bold text-white">{{ session.user.name }}</h3>
-                <p class="text-green-400 font-mono text-sm">{{ session.user.role|capitalize }}</p>
+                <h3 class="text-2xl font-bold">{{ session.user.name }}</h3>
+                <p class="text-green-400 font-mono text-sm uppercase">{{ session.user.role }}</p>
               </div>
             </div>
-
             <div class="space-y-4">
               <div>
                 <label class="text-xs text-gray-500 ml-1">Full Name</label>
                 <input id="officerProfileName"
-                  class="w-full glass p-3 rounded-lg text-white border-white/10 focus:border-green-500 outline-none"
+                  class="w-full glass p-3 rounded-xl border-white/10 outline-none focus:border-green-500"
                   value="{{ session.user.name }}">
               </div>
               <div>
-                <label class="text-xs text-gray-500 ml-1">Email / ID</label>
-                <input class="w-full glass p-3 rounded-lg text-gray-400 border-white/5 bg-black/20"
+                <label class="text-xs text-gray-500 ml-1">Email</label>
+                <input class="w-full glass p-3 rounded-xl border-white/5 bg-black/20 text-gray-400"
                   value="{{ session.user.email }}" readonly>
               </div>
               <button onclick="saveOfficerProfile()"
-                class="w-full bg-gradient-to-r from-green-600 to-green-500 text-white py-3 rounded-lg font-bold hover:shadow-lg hover:shadow-green-500/20 mt-2">
-                Update Profile
+                class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-500 transition">
+                Update Profile Info
               </button>
             </div>
           </div>
-
-          <!-- Security Card -->
-          <div class="glass p-8 rounded-2xl border border-red-500/10">
-            <h2 class="text-xl font-bold mb-6 text-red-500">Security Center</h2>
-
-            <div class="space-y-6">
-              <div class="p-4 bg-white/5 rounded-xl border border-white/5">
-                <div class="flex justify-between items-center mb-2">
-                  <h4 class="font-bold text-sm">Two-Factor Authentication</h4>
-                  <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" class="sr-only peer">
-                    <div
-                      class="w-9 h-5 bg-gray-700 rounded-full peer peer-checked:bg-green-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all">
-                    </div>
-                  </label>
+          <div class="glass p-8 rounded-3xl border border-red-500/10 space-y-8">
+            <h3 class="text-sm font-bold text-red-400 uppercase tracking-widest">Security</h3>
+            <div class="space-y-4">
+              <div class="bg-white/5 p-4 rounded-xl border border-white/5 flex justify-between items-center">
+                <div>
+                  <p class="font-bold">2FA Status</p>
+                  <p class="text-xs text-gray-500">Not enabled</p>
                 </div>
-                <p class="text-xs text-gray-500">Secure your account with 2FA.</p>
+                <button class="text-xs text-blue-400 border border-blue-500/30 px-3 py-1 rounded">Enable</button>
               </div>
-
-              <div class="p-4 bg-white/5 rounded-xl border border-white/5">
-                <h4 class="font-bold text-sm mb-2">Password</h4>
-                <p class="text-xs text-gray-500 mb-4">Last changed 30 days ago.</p>
-                <button onclick="alert('Password reset link sent to email.')"
-                  class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded transition">
-                  Change Password
-                </button>
-              </div>
-
-              <div class="p-4 bg-red-900/10 rounded-xl border border-red-500/20">
-                <h4 class="font-bold text-sm text-red-400 mb-2">Danger Zone</h4>
-                <button onclick="if(confirm('Deactivate account?')) alert('Contact Admin to deactivate.')"
-                  class="text-xs text-red-400 hover:text-red-300 underline">
-                  Deactivate Account
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-
-
-      <!-- AI FEEDBACK MODAL -->
-      <div id="aiFeedbackModal"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
-        <div class="glass p-6 rounded-2xl max-w-sm w-full border border-purple-500/30 relative">
-          <h3 class="text-lg font-bold text-purple-400 mb-4">Review AI Detection</h3>
-          <p class="text-sm text-gray-300 mb-4">Was the AI analysis for this file correct?</p>
-
-          <input type="hidden" id="feedbackEvidenceId">
-
-          <div class="space-y-3">
-            <button onclick="submitFeedback('Correct')"
-              class="w-full bg-green-900/40 text-green-400 border border-green-500/30 p-2 rounded hover:bg-green-900/60">
-              ✔ Correct Detection
-            </button>
-            <button onclick="submitFeedback('False Positive')"
-              class="w-full bg-red-900/40 text-red-400 border border-red-500/30 p-2 rounded hover:bg-red-900/60">
-              ✖ False Positive
-            </button>
-            <button onclick="submitFeedback('Missed Object')"
-              class="w-full bg-yellow-900/40 text-yellow-400 border border-yellow-500/30 p-2 rounded hover:bg-yellow-900/60">
-              ⚠ Missed Object
-            </button>
-          </div>
-
-          <textarea id="feedbackComment" placeholder="Optional comments..."
-            class="w-full glass mt-4 p-2 rounded text-sm text-white focus:outline-none border-white/10"></textarea>
-
-          <button onclick="closeFeedbackModal()"
-            class="mt-4 text-gray-500 text-xs w-full hover:text-white">Cancel</button>
-        </div>
-      </div>
-      <div id="challanModal"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
-        <div
-          class="glass p-8 rounded-2xl max-w-md w-full border border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)] relative">
-          <h2 class="text-2xl font-bold text-white mb-4">File Incident Report</h2>
-
-          <div class="space-y-4">
-            <div>
-              <label class="text-sm text-gray-400">Suspect Name / Description</label>
-              <input id="challanName" type="text" placeholder="e.g. Male in Red Shirt"
-                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none">
-            </div>
-
-            <div>
-              <label class="text-sm text-gray-400">Incident Type</label>
-              <select id="challanReason"
-                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none bg-black">
-                <option value="Suspicious Activity">Suspicious Activity</option>
-                <option value="Public Disturbance">Public Disturbance/Panic</option>
-                <option value="Unauthorised Objects">Unauthorised Objects (Weapons/Bags)</option>
-                <option value="Trespassing">Trespassing</option>
-                <option value="Loitering">Loitering</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="text-sm text-gray-400">Evidence (Photo)</label>
-              <input id="challanEvidence" type="file" accept="image/*"
-                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none text-sm">
-            </div>
-
-            <!-- HIDDEN AMOUNT FIELD (Not relevant for security report) -->
-            <div class="hidden">
-              <label class="text-sm text-gray-400">Fine Amount (₹)</label>
-              <input id="challanAmount" type="number"
-                class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none"
-                value="0">
-            </div>
-
-            <div id="challanResult" class="hidden p-3 bg-green-500/20 text-green-400 rounded text-sm break-all"></div>
-
-            <div class="flex gap-3 mt-6">
-              <button onclick="document.getElementById('challanModal').classList.add('hidden')"
-                class="flex-1 py-2 rounded border border-gray-600 hover:bg-gray-800 text-gray-400">Cancel</button>
-              <button onclick="issueChallan()"
-                class="flex-1 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/30">
-                Submit Report</button>
+              <button onclick="alert('Password reset link sent to your email.')"
+                class="w-full glass py-3 rounded-xl hover:bg-white/5 transition">
+                Change Password
+              </button>
             </div>
           </div>
         </div>
       </div>
+    </section>
+
+
+
+    <!-- AI FEEDBACK MODAL -->
+    <div id="aiFeedbackModal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+      <div class="glass p-6 rounded-2xl max-w-sm w-full border border-purple-500/30 relative">
+        <h3 class="text-lg font-bold text-purple-400 mb-4">Review AI Detection</h3>
+        <p class="text-sm text-gray-300 mb-4">Was the AI analysis for this file correct?</p>
+
+        <input type="hidden" id="feedbackEvidenceId">
+
+        <div class="space-y-3">
+          <button onclick="submitFeedback('Correct')"
+            class="w-full bg-green-900/40 text-green-400 border border-green-500/30 p-2 rounded hover:bg-green-900/60">
+            ✔ Correct Detection
+          </button>
+          <button onclick="submitFeedback('False Positive')"
+            class="w-full bg-red-900/40 text-red-400 border border-red-500/30 p-2 rounded hover:bg-red-900/60">
+            ✖ False Positive
+          </button>
+          <button onclick="submitFeedback('Missed Object')"
+            class="w-full bg-yellow-900/40 text-yellow-400 border border-yellow-500/30 p-2 rounded hover:bg-yellow-900/60">
+            ⚠ Missed Object
+          </button>
+        </div>
+
+        <textarea id="feedbackComment" placeholder="Optional comments..."
+          class="w-full glass mt-4 p-2 rounded text-sm text-white focus:outline-none border-white/10"></textarea>
+
+        <button onclick="closeFeedbackModal()"
+          class="mt-4 text-gray-500 text-xs w-full hover:text-white">Cancel</button>
+      </div>
+    </div>
+    <div id="challanModal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+      <div
+        class="glass p-8 rounded-2xl max-w-md w-full border border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.5)] relative">
+        <h2 class="text-2xl font-bold text-white mb-4">File Incident Report</h2>
+
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm text-gray-400">Suspect Name / Description</label>
+            <input id="challanName" type="text" placeholder="e.g. Male in Red Shirt"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none">
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400">Incident Type</label>
+            <select id="challanReason"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none bg-black">
+              <option value="Suspicious Activity">Suspicious Activity</option>
+              <option value="Public Disturbance">Public Disturbance/Panic</option>
+              <option value="Unauthorised Objects">Unauthorised Objects (Weapons/Bags)</option>
+              <option value="Trespassing">Trespassing</option>
+              <option value="Loitering">Loitering</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400">Evidence (Photo)</label>
+            <input id="challanEvidence" type="file" accept="image/*"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none text-sm">
+          </div>
+
+          <!-- HIDDEN AMOUNT FIELD (Not relevant for security report) -->
+          <div class="hidden">
+            <label class="text-sm text-gray-400">Fine Amount (₹)</label>
+            <input id="challanAmount" type="number"
+              class="w-full glass p-2 rounded text-white border-white/20 focus:border-blue-500 outline-none" value="0">
+          </div>
+
+          <div id="challanResult" class="hidden p-3 bg-green-500/20 text-green-400 rounded text-sm break-all"></div>
+
+          <div class="flex gap-3 mt-6">
+            <button onclick="document.getElementById('challanModal').classList.add('hidden')"
+              class="flex-1 py-2 rounded border border-gray-600 hover:bg-gray-800 text-gray-400">Cancel</button>
+            <button onclick="issueChallan()"
+              class="flex-1 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/30">
+              Submit Report</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
 
 
 
 
-      {% include 'component_chatbot.html' %}
+    {% include 'component_chatbot.html' %}
   </main>
 
   <!-- MODALS CONTAINER -->
@@ -1304,18 +1288,43 @@
   </div>
 
   <!-- CAM PREVIEW MODAL -->
-  <div id="camModal" class="fixed inset-0 bg-black z-[200] hidden flex flex-col">
-    <div class="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-800">
-      <h2 id="camTitle" class="text-xl font-bold text-green-400 font-mono">CAM-01 [GATE] - LIVE FEED</h2>
-      <button onclick="document.getElementById('camModal').classList.add('hidden')"
-        class="text-white hover:text-red-500 text-2xl">×</button>
-    </div>
-    <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-      <img id="camFullImg" src="" class="h-full object-contain">
-      <div class="absolute top-4 right-4 animate-pulse flex items-center gap-2">
-        <span class="w-3 h-3 bg-red-600 rounded-full"></span>
-        <span class="text-red-600 font-bold font-mono">REC</span>
+  <div id="camModal" class="fixed inset-0 bg-[#050b07] z-[200] hidden flex flex-col">
+    <div class="flex justify-between items-center p-4 bg-[#0a160f] border-b border-green-500/20">
+      <div class="flex items-center gap-4">
+        <h2 id="camTitle" class="text-xl font-bold text-[#13ec5b] font-mono tracking-tighter">CAM-01 [GATE] - LIVE FEED</h2>
+        <span class="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded border border-green-500/30 font-bold">ENLARGED VIEW</span>
       </div>
+      <button onclick="closeCamModal()"
+        class="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 w-10 h-10 rounded-full flex items-center justify-center text-2xl">×</button>
+    </div>
+    <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden group">
+      <!-- Loading Placeholder -->
+      <div id="camLoading" class="absolute inset-0 flex flex-col items-center justify-center bg-black z-10">
+          <div class="w-12 h-12 border-4 border-[#13ec5b]/20 border-t-[#13ec5b] rounded-full animate-spin"></div>
+          <p class="text-xs text-green-500 mt-4 font-mono animate-pulse">CONNECTING TO SECURE FEED...</p>
+      </div>
+
+      <img id="camFullImg" src="" class="w-full h-full object-contain relative z-20"
+           onload="document.getElementById('camLoading').classList.add('hidden')"
+           style="display:block;">
+      
+      <div class="absolute top-8 right-8 z-30 flex flex-col items-end gap-2">
+        <div class="bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-red-500/30 flex items-center gap-3">
+            <div class="w-3 h-3 bg-red-600 rounded-full animate-ping"></div>
+            <span class="text-red-500 font-bold font-mono text-sm">REC LIVE</span>
+        </div>
+        <div id="camOverlayData" class="bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-green-500/30 text-[10px] font-mono text-green-400">
+            SECURE_LINK: ESTABLISHED<br>
+            ENCRYPTION: AES-256<br>
+            BITRATE: 4.2 MBPS
+        </div>
+      </div>
+
+      <!-- Corner Accents -->
+      <div class="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-green-500/50 z-30"></div>
+      <div class="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-green-500/50 z-30"></div>
+      <div class="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-green-500/50 z-30"></div>
+      <div class="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-green-500/50 z-30"></div>
     </div>
   </div>
 
@@ -1323,6 +1332,8 @@
   <script>
     /* ---------- NAVIGATION ---------- */
     function showSection(sectionId, btn) {
+      console.log('Showing section:', sectionId); // Debug line
+
       // 1. Hide all sections
       document.querySelectorAll('.section').forEach(sec => {
         sec.classList.add('hidden');
@@ -1335,7 +1346,13 @@
       });
 
       // 3. Show target section
-      document.getElementById(sectionId).classList.remove('hidden');
+      const targetSection = document.getElementById(sectionId);
+      if (targetSection) {
+        targetSection.classList.remove('hidden');
+        console.log('Section found and shown:', sectionId);
+      } else {
+        console.error('Section not found:', sectionId);
+      }
 
       // 4. Set active state on clicked button
       if (btn) {
@@ -1413,29 +1430,65 @@
     }
 
     // 3. Camera View
+    let gridPaused = false;
+    function pauseGrid() {
+      if (gridPaused) return;
+      document.querySelectorAll('.cam-feed img').forEach(img => {
+        img.dataset.src = img.src; // Save original
+        img.src = ""; // Stop stream
+      });
+      gridPaused = true;
+    }
+
+    function resumeGrid() {
+      if (!gridPaused) return;
+      document.querySelectorAll('.cam-feed img').forEach(img => {
+        if (img.dataset.src) img.src = img.dataset.src;
+      });
+      gridPaused = false;
+    }
+
     function viewCamera(title) {
-      document.getElementById('camTitle').textContent = title + " - LIVE FEED";
+      pauseGrid(); // Important for browser connection limits
       
+      document.getElementById('camTitle').textContent = title + " - LIVE FEED";
+      document.getElementById('camLoading').classList.remove('hidden');
+
       const img = document.getElementById('camFullImg');
       const idx_map = {
-          'CAM-01': 0, 'CAM-02': 1, 'CAM-03': 2, 'CAM-04': 3,
-          'CAM-05': 4, 'CAM-06': 5, 'CAM-07': 6, 'CAM-08': 7
+        'CAM-01': 0, 'CAM-02': 1, 'CAM-03': 2, 'CAM-04': 3,
+        'CAM-05': 4, 'CAM-06': 5, 'CAM-07': 6, 'CAM-08': 7
       };
-      
+
       let found = false;
       for (const [key, val] of Object.entries(idx_map)) {
-          if (title.includes(key)) {
-              img.src = `/video_feed/${val}`;
-              found = true;
-              break;
-          }
+        if (title.includes(key)) {
+          // Set stream src directly — NO query params, they break MJPEG streams
+          img.src = `/video_feed/${val}`;
+          found = true;
+          break;
+        }
       }
-      
+
       if (!found) {
-          img.src = "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=1200";
+        // Default to cam 0 if title not matched
+        img.src = `/video_feed/0`;
       }
-      
+
+      // Hide loading spinner as soon as stream begins delivering frames
+      img.onload = () => document.getElementById('camLoading').classList.add('hidden');
+      // For MJPEG streams, onload fires on first frame — fallback timer to remove spinner
+      setTimeout(() => document.getElementById('camLoading').classList.add('hidden'), 1500);
+
       document.getElementById('camModal').classList.remove('hidden');
+    }
+
+    function closeCamModal() {
+      const modal = document.getElementById('camModal');
+      const img = document.getElementById('camFullImg');
+      img.src = ""; // Stop stream
+      modal.classList.add('hidden');
+      resumeGrid();
     }
 
     // 4. AI Alert Simulation
@@ -1806,14 +1859,14 @@
       try {
         const res = await fetch('/api/get_recent_alerts');
         const alerts = await res.json();
-        
+
         const panel = document.getElementById('aiAlertsPanel');
         if (!panel) return;
 
         alerts.forEach(alert => {
           if (!processedAlertIds.has(alert.id)) {
             processedAlertIds.add(alert.id);
-            
+
             // Only show AI/Camera alerts here
             const sourceName = alert.source.toUpperCase();
             if (sourceName.includes('CAM') || sourceName.includes('GATE') || sourceName.includes('AI')) {
@@ -1832,11 +1885,11 @@
                   </div>
               `;
               panel.prepend(div);
-              
+
               // Play alert sound if it's critical
               if (alert.severity === 'Critical') {
-                  const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
-                  audio.play().catch(e => {});
+                const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3');
+                audio.play().catch(e => { });
               }
             }
           }
@@ -1869,11 +1922,11 @@
         const notifs = await res.json();
 
         const list = document.getElementById('notificationList');
-        const dot = document.getElementById('notificationDot');
+        const dots = document.querySelectorAll('#notificationDot, #messageDot');
 
         if (notifs.length === 0) {
           list.innerHTML = '<p class="text-center text-gray-500 text-xs py-4">No notifications.</p>';
-          dot.classList.add('hidden');
+          dots.forEach(d => d.classList.add('hidden'));
           return;
         }
 
@@ -1893,8 +1946,8 @@
 
         list.innerHTML = html;
 
-        if (hasUnread) dot.classList.remove('hidden');
-        else dot.classList.add('hidden');
+        if (hasUnread) dots.forEach(d => d.classList.remove('hidden'));
+        else dots.forEach(d => d.classList.add('hidden'));
 
       } catch (e) { console.error(e); }
     }
@@ -2464,13 +2517,12 @@
       localStorage.setItem('netra_pref_dark', dark);
       localStorage.setItem('netra_pref_vol', vol);
 
-      alert("Preferences Saved Successfully!");
+      console.log('Settings saved:', { notif, dark, vol });
+      alert('Settings saved successfully!');
     }
 
     function loadSettings() {
-      if (localStorage.getItem('netra_pref_notif')) {
-        document.getElementById('settNotif').checked = (localStorage.getItem('netra_pref_notif') === 'true');
-      }
+      console.log('Loading settings...');
       if (localStorage.getItem('netra_pref_dark')) {
         const dark = (localStorage.getItem('netra_pref_dark') === 'true');
         document.getElementById('settDark').checked = dark;
@@ -2479,6 +2531,10 @@
       if (localStorage.getItem('netra_pref_vol')) {
         document.getElementById('settVol').value = localStorage.getItem('netra_pref_vol');
       }
+      if (localStorage.getItem('netra_pref_notif')) {
+        document.getElementById('settNotif').checked = localStorage.getItem('netra_pref_notif') === 'true';
+      }
+      console.log('Settings loaded');
     }
 
     function toggleDarkMode(checkbox) {
@@ -2708,7 +2764,7 @@
     // --- SERVICE WORKER & OFFLINE SYNC ---
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js').then(reg => {
+        navigator.serviceWorker.register('/static/sw.js?v=4').then(reg => {
           console.log('SW Registered');
         }).catch(err => console.log('SW Error', err));
       });

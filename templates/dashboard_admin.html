@@ -9,6 +9,23 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js" crossorigin=""></script>
+  <script>
+    function logout() {
+      // Explicitly kill all video streams to free up browser connection limits
+      // Using .remove() is safe and guarantees the stream connection is dropped
+      // without triggering an empty URL request like img.src = '' did.
+      document.querySelectorAll('img[src*="/video_feed/"]').forEach(img => {
+          img.parentNode.removeChild(img);
+      });
+      
+      if (window.stop) window.stop();
+      
+      // Small delay allows browser to close TCP connections before new request
+      setTimeout(() => {
+          window.location.href = '/logout';
+      }, 150);
+    }
+  </script>
   <!-- Google Fonts: Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -156,8 +173,6 @@
   <header class="fixed top-0 left-0 right-0 z-50 h-14
                flex items-center gap-4
                bg-[#102216] border-b border-green-900 px-4">
-    <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-40 hidden">
-    </div>
 
     <!-- Hamburger -->
     <button onclick="toggleSidebar()" class="text-[#13ec5b] focus:outline-none">
@@ -167,12 +182,10 @@
       </svg>
     </button>
 
-    <span class="font-bold text-[#13ec5b] text-lg flex-1">
+    <span class="font-bold text-[#13ec5b] text-lg flex-1" data-i18n="netra_admin">
       NETRA Admin
     </span>
 
-    <!-- Language Selector -->
-    <!-- Custom Language Selector -->
     <!-- Custom Language Selector -->
     <div class="relative mr-4 group z-50">
       <button id="langBtn"
@@ -201,28 +214,16 @@
       </div>
     </div>
 
-    <!-- Notification Bell -->
-    <div class="relative mr-4 cursor-pointer"
-      onclick="markSeen(); showSection('messages', document.querySelector('[onclick*=\'messages\']'));">
-      <svg id="notificationBell" xmlns="http://www.w3.org/2000/svg"
-        class="h-6 w-6 text-gray-400 transition-colors duration-300" fill="none" viewBox="0 0 24 24"
-        stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-      <!-- Red Dot -->
-      <span id="notificationDot"
-        class="hidden absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-[#102216] bg-red-500"></span>
-    </div>
   </header>
+  <!-- Sidebar Overlay (outside header to avoid stacking context conflicts) -->
+  <div id="overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-40 hidden backdrop-blur-sm"></div>
 
   <!-- SIDEBAR -->
   <aside id="sidebar" class="fixed top-0 left-0 z-50 w-64 h-full
-         bg-[#112217] p-4 space-y-6
+         bg-[#112217] p-4 flex flex-col
          transform -translate-x-full
-         transition-transform duration-300 overflow-y-auto">
-
-    <h2 class="text-xl font-bold text-[#13ec5b]">NETRA Admin</h2>
+         transition-transform duration-300">
+    <h2 class="text-xl font-bold text-[#13ec5b]" data-i18n="netra_admin">NETRA Admin</h2>
     <!-- ADMIN PROFILE CARD -->
     <div class="flex items-center gap-3 bg-[#1a2e22] p-3 rounded">
       <img id="profilePic" src="https://via.placeholder.com/60"
@@ -232,29 +233,42 @@
         <p class="text-xs text-green-300">Administrator</p>
       </div>
     </div>
-
-    <nav class="space-y-2">
-      <button onclick="showSection('overview', this)" class="nav-btn active" data-i18n="overview">Overview</button>
-      <button onclick="showSection('map', this)" class="nav-btn" data-i18n="tactical_map">Tactical Map</button>
-      <button onclick="showSection('management', this)" class="nav-btn" data-i18n="management">Management</button>
-      <button onclick="showSection('public_entries', this)" class="nav-btn">Public Entries</button>
-      <button onclick="showSection('alerts', this)" class="nav-btn" data-i18n="alerts">Alerts</button>
-      <button onclick="showSection('messages', this)" class="nav-btn" data-i18n="messages">Messages</button>
-      <button onclick="showSection('monitoring', this)" class="nav-btn" data-i18n="monitoring">Live Monitoring</button>
-      <button onclick="showSection('health', this)" class="nav-btn" data-i18n="health">System Health</button>
-      <button onclick="showSection('config', this)" class="nav-btn" data-i18n="config">Configuration</button>
-      <button onclick="showSection('restricted_zones', this); loadZones()" class="nav-btn">Restricted Zones</button>
-      <button class="nav-btn" onclick="showSection('help', this)" data-i18n="help">Help & FAQ</button>
-      <button onclick="showSection('profile', this)" class="nav-btn">Profile</button>
-
-
-      <a href="/logout"
-        class="block w-full text-left p-3 mt-8 bg-red-900/30 text-red-400 rounded hover:bg-red-900/50 hover:text-red-300 font-bold transition-colors">
-        Logout
-      </a>
+ 
+    <nav class="space-y-2 flex-1 overflow-y-auto custom-scrollbar-chat pr-2">
+      <button onclick="showSection('overview', this)" class="nav-btn active"> <span data-i18n="overview">Overview</span></button>
+      <button onclick="showSection('map', this)" class="nav-btn"> <span data-i18n="tactical_map">Tactical Map</span></button>
+      <button onclick="showSection('management', this)" class="nav-btn"> <span data-i18n="management">Management</span></button>
+      <button onclick="showSection('public_entries', this)" class="nav-btn"> <span data-i18n="public_entries">Public Entries</span></button>
+      <button onclick="showSection('alerts', this)" class="nav-btn"> <span data-i18n="alerts">Alerts</span></button>
+      <button onclick="showSection('messages', this)" class="nav-btn"> <span data-i18n="messages">Messages</span></button>
+      <button onclick="showSection('monitoring', this)" class="nav-btn"> <span data-i18n="monitoring">Live Monitoring</span></button>
+      <button onclick="showSection('health', this)" class="nav-btn"> <span data-i18n="health">System Health</span></button>
+      <button onclick="showSection('config', this)" class="nav-btn"> <span data-i18n="config">Configuration</span></button>
+      <button onclick="showSection('restricted_zones', this); loadZones()" class="nav-btn"> <span data-i18n="restricted_zones">Restricted Zones</span></button>
+      <button onclick="showSection('profile', this)" class="nav-btn"> <span data-i18n="profile">Profile</span></button>
     </nav>
-  </aside>
 
+    <!-- Sidebar Bottom Actions -->
+    <div class="mt-auto pt-4 border-t border-white/10">
+      <button onclick="logout()"
+        class="w-full group bg-red-500/10 hover:bg-red-500 border border-red-500/30 hover:border-red-500 p-3 rounded-xl transition-all duration-300 flex items-center justify-between overflow-hidden relative cursor-pointer block no-underline">
+        <div
+          class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000">
+        </div>
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center text-red-500 group-hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 16l4-4m0 0l-4 4m4-4H3m6 0v-3a4 4 0 00-4-4H7a4 4 0 00-4 4v3m6 0v6a4 4 0 01-4 4H7a4 4 0 01-4-4v-6" />
+            </svg>
+          </div>
+          <span class="text-white font-bold" data-i18n="logout">Logout</span>
+        </div>
+      </button>
+    </div>
+  </aside>
   <!-- MAIN -->
   <main class="flex-1 p-6 overflow-y-auto space-y-8 pt-16">
 
@@ -459,17 +473,17 @@
       {% endif %}
 
       <!-- ACTIVE USER LIST -->
-      <div class="glass p-6 rounded-xl mb-6">
-        <h3 class="panel-title mb-4">Active Security Officers & Roles</h3>
+      <div class="glass p-6 rounded-xl mb-6 border border-[#13ec5b]/20">
+        <h3 class="panel-title mb-6 text-[#13ec5b]" data-i18n="active_officers_roles">Active Security Officers & Roles</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead>
               <tr class="text-gray-400 border-b border-gray-700">
-                <th class="py-2">Name</th>
-                <th class="py-2">Email</th>
-                <th class="py-2">Current Role</th>
-                <th class="py-2">Assign Role</th>
-                <th class="py-2 text-right">Actions</th>
+                <th class="py-2" data-i18n="officer">Name</th>
+                <th class="py-2" data-i18n="email">Email</th>
+                <th class="py-2" data-i18n="current_role">Current Role</th>
+                <th class="py-2" data-i18n="assign_role">Assign Role</th>
+                <th class="py-2 text-right" data-i18n="action">Actions</th>
               </tr>
             </thead>
             <tbody id="userList">
@@ -503,7 +517,7 @@
                 </td>
                 <td class="py-3 text-right">
                   <button onclick="updateUserStatus('{{ officer.id }}', 'blocked')"
-                    class="text-red-400 hover:text-red-300 border border-red-500/30 px-3 py-1 rounded text-xs transition duration-200 hover:bg-red-500/10">
+                    class="text-red-400 hover:text-red-300 border border-red-500/30 px-3 py-1 rounded text-xs transition duration-200 hover:bg-red-500/10" data-i18n="block_access">
                     Block Access
                   </button>
                 </td>
@@ -519,14 +533,14 @@
 
       <!-- BLOCKED USER HISTORY -->
       <div class="glass p-4 rounded-xl">
-        <h3 class="panel-title text-red-400">Blocked Officers History</h3>
+        <h3 class="panel-title text-red-400" data-i18n="blocked_officers_history">Blocked Officers History</h3>
         <ul id="blockedUserList" class="space-y-2 text-sm mt-3">
           {% for officer in blocked_users %}
           <li class="flex justify-between items-center bg-red-900/10 p-3 rounded border border-red-500/10"
             id="user-row-{{officer.id}}">
             <span class="text-gray-400">{{ officer.name }} ({{ officer.email }})</span>
             <button onclick="updateUserStatus('{{ officer.id }}', 'approved')"
-              class="text-green-400 hover:text-green-300 border border-green-500/30 px-2 py-1 rounded text-xs transition duration-200">
+              class="text-green-400 hover:text-green-300 border border-green-500/30 px-2 py-1 rounded text-xs transition duration-200" data-i18n="unblock">
               Unblock
             </button>
           </li>
@@ -539,16 +553,16 @@
 
       <!-- CASE MANAGEMENT -->
       <div class="glass p-6 rounded-xl mt-6 border border-blue-500/20">
-        <h3 class="panel-title mb-4 text-blue-400">Manage Case Assignments</h3>
+        <h3 class="panel-title mb-4 text-blue-400" data-i18n="manage_case_assignments">Manage Case Assignments</h3>
         <div class="overflow-x-auto max-h-96 custom-scrollbar">
           <table class="w-full text-sm text-left">
             <thead>
               <tr class="text-gray-400 border-b border-gray-700">
-                <th class="py-2 px-4">Case Filename</th>
-                <th class="py-2 px-4">Officer (Current)</th>
-                <th class="py-2 px-4">Status</th>
-                <th class="py-2 px-4">Transfer To</th>
-                <th class="py-2 px-4">Action</th>
+                <th class="py-2 px-4" data-i18n="case_filename">Case Filename</th>
+                <th class="py-2 px-4" data-i18n="officer_current">Officer (Current)</th>
+                <th class="py-2 px-4" data-i18n="status">Status</th>
+                <th class="py-2 px-4" data-i18n="transfer_to">Transfer To</th>
+                <th class="py-2 px-4" data-i18n="action">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -575,7 +589,7 @@
                 </td>
                 <td class="py-3 px-4">
                   <button onclick="reassignCase('{{ case.id }}')"
-                    class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 px-3 py-1 rounded text-xs transition">
+                    class="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/50 px-3 py-1 rounded text-xs transition" data-i18n="transfer">
                     Transfer
                   </button>
                 </td>
@@ -596,7 +610,7 @@
     <section id="messages" class="section hidden">
       <h2 class="section-title" data-i18n="messages">Messages</h2>
       <div id="messaging" class="glass p-6 rounded-xl border border-white/5 mb-6">
-        <h3 class="panel-title mb-4 font-bold text-emerald-400">Comms Channel</h3>
+        <h3 class="panel-title mb-4 font-bold text-emerald-400" data-i18n="comms_channel">Comms Channel</h3>
 
         <!-- Compose -->
         <div class="mb-4 space-y-2">
@@ -608,10 +622,10 @@
               <option value="{{ officer.id }}" class="bg-black">{{ officer.name }}</option>
               {% endfor %}
             </select>
-            <input id="msgContent" type="text" placeholder="Type a message..."
+            <input id="msgContent" type="text" placeholder="Type a message..." data-i18n="type_message"
               class="glass p-2 rounded text-sm border-white/10 w-full text-white placeholder-gray-500 focus:outline-none focus:border-green-500">
             <button onclick="sendMessage()"
-              class="bg-gradient-to-r from-green-500 to-emerald-600 text-black px-4 py-2 rounded hover:from-green-400 hover:to-emerald-500 font-bold shadow-lg shadow-green-500/20 transition-all duration-300">
+              class="bg-gradient-to-r from-green-500 to-emerald-600 text-black px-4 py-2 rounded hover:from-green-400 hover:to-emerald-500 font-bold shadow-lg shadow-green-500/20 transition-all duration-300" data-i18n="send">
               Send
             </button>
           </div>
@@ -649,16 +663,16 @@
 
     <!-- RESTRICTED ZONES SECTION -->
     <section id="restricted_zones" class="section hidden">
-      <h2 class="section-title">Restricted Zone Management</h2>
+      <h2 class="section-title" data-i18n="restricted_zones">Restricted Zone Management</h2>
       <!-- ... (existing content) ... -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- ... (existing content) ... -->
         <!-- Zone List -->
         <div class="glass p-6 rounded-xl border border-white/5">
-          <h3 class="panel-title mb-4 text-gray-300">Active Restricted Zones</h3>
+          <h3 class="panel-title mb-4 text-gray-300" data-i18n="active_restricted_zones">Active Restricted Zones</h3>
           <div id="zoneListContainer" class="space-y-3 h-80 overflow-y-auto custom-scrollbar">
             <!-- Populated by JS -->
-            <p class="text-gray-500 italic text-center py-4">Loading zones...</p>
+            <p class="text-gray-500 italic text-center py-4" data-i18n="loading_zones">Loading zones...</p>
           </div>
         </div>
       </div>
@@ -666,20 +680,20 @@
 
     <!-- NEW: PUBLIC ENTRIES SECTION -->
     <section id="public_entries" class="section hidden">
-      <h1 class="section-title">Public Entry Logistics</h1>
+      <h1 class="section-title" data-i18n="public_entries_logistics">Public Entry Logistics</h1>
 
       <!-- Stats Row -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="glass p-6 rounded-xl border-l-4 border-green-500">
-          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Revenue</h3>
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1" data-i18n="total_revenue">Total Revenue</h3>
           <p class="text-3xl font-bold text-white">₹{{ entry_stats.total_revenue }}</p>
         </div>
         <div class="glass p-6 rounded-xl border-l-4 border-blue-500">
-          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Headcount</h3>
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1" data-i18n="total_headcount">Total Headcount</h3>
           <p class="text-3xl font-bold text-white">{{ entry_stats.total_heads }}</p>
         </div>
         <div class="glass p-6 rounded-xl border-l-4 border-purple-500">
-          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Latest Entry</h3>
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1" data-i18n="latest_entry">Latest Entry</h3>
           <p class="text-xl font-bold text-white truncate">
             {% if public_entries %}
             {{ public_entries[0].name }} ({{ public_entries[0].role }})
@@ -692,19 +706,19 @@
 
       <!-- Entries Table -->
       <div class="glass p-6 rounded-xl border border-white/5">
-        <h3 class="panel-title mb-6 font-bold text-emerald-400">Entry Logs</h3>
+        <h3 class="panel-title mb-6 font-bold text-emerald-400" data-i18n="entry_logs">Entry Logs</h3>
         <div class="overflow-x-auto custom-scrollbar">
           <table class="w-full text-sm text-left">
             <thead>
               <tr class="text-gray-400 border-b border-gray-700">
-                <th class="py-3 px-4">Time</th>
-                <th class="py-3 px-4">Name</th>
-                <th class="py-3 px-4">Role</th>
-                <th class="py-3 px-4">Phone</th>
-                <th class="py-3 px-4">Count</th>
-                <th class="py-3 px-4">Amount</th>
-                <th class="py-3 px-4">Status</th>
-                <th class="py-3 px-4">Payment ID</th>
+                <th class="py-3 px-4" data-i18n="time">Time</th>
+                <th class="py-3 px-4" data-i18n="visitor_name">Name</th>
+                <th class="py-3 px-4" data-i18n="role">Role</th>
+                <th class="py-3 px-4" data-i18n="phone">Phone</th>
+                <th class="py-3 px-4" data-i18n="count">Count</th>
+                <th class="py-3 px-4" data-i18n="amount">Amount</th>
+                <th class="py-3 px-4" data-i18n="status">Status</th>
+                <th class="py-3 px-4" data-i18n="payment_id">Payment ID</th>
               </tr>
             </thead>
             <tbody>
@@ -749,111 +763,13 @@
             </tbody>
           </table>
         </div>
-      </div>
     </section>
-
-    <!-- SYSTEM CONFIG SECTION -->
-    <section id="system_config" class="section hidden">
-      <h2 class="section-title">System Configuration</h2>
-      <div class="glass p-6 rounded-xl border border-purple-500/20 max-w-2xl">
-        <h3 class="panel-title mb-6 font-bold text-purple-400">Global Settings</h3>
-
-        <div class="space-y-6">
-          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-            <div>
-              <p class="font-bold text-gray-200">Enable AI Auto-Scan</p>
-              <p class="text-xs text-gray-500">Automatically scan uploaded evidence for weapons/objects.</p>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="conf_ai_scan" class="sr-only peer">
-              <div
-                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
-              </div>
-            </label>
-          </div>
-
-          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-            <div>
-              <p class="font-bold text-gray-200">System Lockdown Mode</p>
-              <p class="text-xs text-gray-500">Restrict all non-admin access immediately.</p>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="conf_lockdown" class="sr-only peer">
-              <div
-                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600">
-              </div>
-            </label>
-          </div>
-
-          <div>
-            <label class="text-sm text-gray-400 mb-2 block">Default Alert Broadcast Message</label>
-            <input id="conf_alert_msg" type="text"
-              class="w-full glass p-3 rounded text-white border-white/10 focus:border-purple-500 outline-none"
-              placeholder="Emergency! Please evacuate...">
-          </div>
-
-          <button onclick="saveSystemConfig()"
-            class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded shadow-lg shadow-purple-500/30 transition">
-            Save Configuration
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- SYSTEM CONFIG SECTION -->
-    <section id="system_config" class="section hidden">
-      <h2 class="section-title">System Configuration</h2>
-      <div class="glass p-6 rounded-xl border border-purple-500/20 max-w-2xl">
-        <h3 class="panel-title mb-6 font-bold text-purple-400">Global Settings</h3>
-
-        <div class="space-y-6">
-          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-            <div>
-              <p class="font-bold text-gray-200">Enable AI Auto-Scan</p>
-              <p class="text-xs text-gray-500">Automatically scan uploaded evidence for weapons/objects.</p>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="conf_ai_scan" class="sr-only peer">
-              <div
-                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600">
-              </div>
-            </label>
-          </div>
-
-          <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5">
-            <div>
-              <p class="font-bold text-gray-200">System Lockdown Mode</p>
-              <p class="text-xs text-gray-500">Restrict all non-admin access immediately.</p>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="conf_lockdown" class="sr-only peer">
-              <div
-                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600">
-              </div>
-            </label>
-          </div>
-
-          <div>
-            <label class="text-sm text-gray-400 mb-2 block">Default Alert Broadcast Message</label>
-            <input id="conf_alert_msg" type="text"
-              class="w-full glass p-3 rounded text-white border-white/10 focus:border-purple-500 outline-none"
-              placeholder="Emergency! Please evacuate...">
-          </div>
-
-          <button onclick="saveSystemConfig()"
-            class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded shadow-lg shadow-purple-500/30 transition">
-            Save Configuration
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ALERTS SECTION -->
+         <!-- ALERTS SECTION -->
     <section id="alerts" class="section hidden">
-      <h2 class="section-title">System Alerts</h2>
-
+      <h2 class="section-title" data-i18n="alerts">System Alerts</h2>
+ 
       <!-- ACTIVE ALERTS -->
-      <h3 class="text-xl font-bold text-red-400 mb-3 border-b border-gray-700 pb-2">Active Alerts</h3>
+      <h3 class="text-xl font-bold text-red-400 mb-3 border-b border-gray-700 pb-2" data-i18n="active_alerts">Active Alerts</h3>
       <div id="alertContainer" class="space-y-4 mb-8">
         {% for alert in active_alerts %}
         <div class="alert {{ 'red' if alert.severity == 'Critical' else 'yellow' }} flex justify-between items-center">
@@ -863,20 +779,21 @@
           </span>
           <div class="flex gap-2">
             <button class="text-xs text-blue-400 border border-blue-500/30 px-2 py-1 rounded hover:bg-blue-500/10"
-              onclick="shareAlert('{{ alert.message|e }}', '{{ alert.source|e }}')">Share</button>
-            <button class="ack-btn" onclick="acknowledge(this, '{{ alert.id }}')">Acknowledge</button>
+              onclick="shareAlert('{{ alert.message|e }}', '{{ alert.source|e }}')" data-i18n="share">Share</button>
+            <button class="ack-btn" onclick="acknowledge(this, '{{ alert.id }}')" data-i18n="acknowledge">Acknowledge</button>
           </div>
+        </div>         </div>
         </div>
         {% endfor %}
         {% if not active_alerts %}
-        <p id="noAlerts" class="text-green-400 italic">✅ No active alerts.</p>
+        <p id="noAlerts" class="text-green-400 italic" data-i18n="no_active_alerts">✅ No active alerts.</p>
         {% endif %}
         <!-- Hidden element to toggle if JS clears all -->
-        <p id="noAlertsDynamic" class="hidden text-green-400 italic">✅ No active alerts.</p>
+        <p id="noAlertsDynamic" class="hidden text-green-400 italic" data-i18n="no_active_alerts">✅ No active alerts.</p>
       </div>
 
       <!-- ALERT HISTORY -->
-      <h3 class="text-xl font-bold text-gray-400 mb-3 border-b border-white/10 pb-2">Alert History</h3>
+      <h3 class="text-xl font-bold text-gray-400 mb-3 border-b border-white/10 pb-2" data-i18n="alert_history">Alert History</h3>
       <div id="alertHistoryContainer" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
         {% for alert in resolved_alerts %}
         <div
@@ -919,50 +836,74 @@
         <!-- Cam 1 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-01 [MAIN GATE]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/0" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/0"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
         <!-- Cam 2 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-02 [LOBBY]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/1" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/1"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
         <!-- Cam 3 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-03 [PERIMETER]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/2" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/2"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
         <!-- Cam 4 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-04 [SERVER]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/3" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/3"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
         <!-- Cam 5 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-05 [PARKING]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/4" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/4"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
         <!-- Cam 6 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-06 [ROOF]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/5" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/5"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
         <!-- Cam 7 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-07 [STAIRS]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/6" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/6"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
         <!-- Cam 8 -->
         <div class="cam-feed rounded-xl relative group">
           <div class="cam-overlay">CAM-08 [DOCK]<br><span class="live-clock">--:--:--</span></div>
-          <div class="rec-indicator"><div class="rec-dot"></div> REC</div>
-          <img src="/video_feed/7" class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <div class="rec-indicator">
+            <div class="rec-dot"></div> REC
+          </div>
+          <img src="/video_feed/7"
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
         </div>
       </div>
 
@@ -985,28 +926,28 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="glass p-4 rounded-xl flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-xs uppercase">Overall Status</p>
+            <p class="text-gray-400 text-xs uppercase" data-i18n="overall_status">Overall Status</p>
             <p class="text-green-400 font-bold text-lg">OPERATIONAL</p>
           </div>
           <div class="h-3 w-3 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]"></div>
         </div>
         <div class="glass p-4 rounded-xl flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-xs uppercase">Database</p>
+            <p class="text-gray-400 text-xs uppercase" data-i18n="database">Database</p>
             <p class="text-green-400 font-bold">Connected</p>
           </div>
           <div class="text-2xl">🗄️</div>
         </div>
         <div class="glass p-4 rounded-xl flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-xs uppercase">AI Engine</p>
+            <p class="text-gray-400 text-xs uppercase" data-i18n="ai_engine">AI Engine</p>
             <p class="text-green-400 font-bold">Active</p>
           </div>
           <div class="text-2xl">🧠</div>
         </div>
         <div class="glass p-4 rounded-xl flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-xs uppercase">Last Backup</p>
+            <p class="text-gray-400 text-xs uppercase" data-i18n="last_backup">Last Backup</p>
             <p class="text-blue-400 font-bold">2 Hours Ago</p>
           </div>
           <div class="text-2xl">💾</div>
@@ -1017,7 +958,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="glass p-6 rounded-xl">
           <h3 class="font-bold mb-4 text-green-400 flex items-center gap-2">
-            <span class="animate-pulse">●</span> Live CPU Usage
+            <span class="animate-pulse">●</span> <span data-i18n="live_cpu">Live CPU Usage</span>
           </h3>
           <div class="h-64">
             <canvas id="cpuChart"></canvas>
@@ -1025,7 +966,7 @@
         </div>
         <div class="glass p-6 rounded-xl">
           <h3 class="font-bold mb-4 text-blue-400 flex items-center gap-2">
-            <span class="animate-pulse">●</span> Live Memory Usage
+            <span class="animate-pulse">●</span> <span data-i18n="live_memory">Live Memory Usage</span>
           </h3>
           <div class="h-64">
             <canvas id="memChart"></canvas>
@@ -1033,25 +974,24 @@
         </div>
       </div>
     </section>
-    </section>
-
-    <!-- FINES MANAGEMENT SECTION -->
-    <section id="fines" class="section hidden">
-      <h1 class="section-title">Fines & Revenue</h1>
-
+       <section id="fines" class="section hidden">
+      <h1 class="section-title" data-i18n="fines_revenue">Fines & Revenue</h1>
+ 
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="glass p-6 rounded-xl">
-          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2">Total Fine Revenue</h3>
+          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2" data-i18n="total_fine_revenue">Total Fine Revenue</h3>
           <p class="text-4xl font-bold text-green-400">₹{{ fines_stats.total_revenue or 0 }}</p>
         </div>
         <div class="glass p-6 rounded-xl">
-          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2">Total Fines Issued</h3>
+          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2" data-i18n="total_fines_issued">Total Fines Issued</h3>
           <p class="text-4xl font-bold text-white">{{ fines_stats.total_count or 0 }}</p>
         </div>
         <div class="glass p-6 rounded-xl">
-          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2">Pending Payments</h3>
+          <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2" data-i18n="pending_payments">Pending Payments</h3>
           <p class="text-4xl font-bold text-red-400">{{ fines_stats.pending_count or 0 }}</p>
+        </div>
+      </div>.pending_count or 0 }}</p>
         </div>
       </div>
 
@@ -1072,14 +1012,14 @@
         <table class="w-full text-left text-sm">
           <thead class="bg-white/5 text-gray-400 uppercase text-xs">
             <tr>
-              <th class="p-4">ID</th>
-              <th class="p-4">Violator</th>
-              <th class="p-4">Violation</th>
-              <th class="p-4">Amount</th>
-              <th class="p-4">Issued By</th>
-              <th class="p-4">Status</th>
-              <th class="p-4">Date</th>
-              <th class="p-4">Action</th>
+              <th class="p-4" data-i18n="id">ID</th>
+              <th class="p-4" data-i18n="violator">Violator</th>
+              <th class="p-4" data-i18n="violation">Violation</th>
+              <th class="p-4" data-i18n="amount">Amount</th>
+              <th class="p-4" data-i18n="issued_by">Issued By</th>
+              <th class="p-4" data-i18n="status">Status</th>
+              <th class="p-4" data-i18n="date">Date</th>
+              <th class="p-4" data-i18n="action">Action</th>
             </tr>
           </thead>
           <tbody id="finesTableBody">
@@ -1104,7 +1044,7 @@
               <td class="p-4">
                 {% if fine.evidence_path %}
                 <a href="{{ url_for('static', filename=fine.evidence_path.replace('static/', '')) }}" target="_blank"
-                  class="text-blue-400 hover:underline">View Proof</a>
+                  class="text-blue-400 hover:underline" data-i18n="view_proof">View Proof</a>
                 {% else %}
                 <span class="text-gray-600">-</span>
                 {% endif %}
@@ -1120,9 +1060,47 @@
     </section>
 
     <section id="config" class="section hidden">
-      <h1 class="section-title" data-i18n="config">System Configuration</h1>
+      <h1 class="section-title" data-i18n="configuration">System Configuration</h1>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Global Settings (Merged from system_config) -->
+        <div class="glass p-6 rounded-xl space-y-6">
+          <h3 class="text-lg font-bold text-purple-400 border-b border-white/10 pb-2" data-i18n="global_settings">Global Settings</h3>
+
+          <div class="flex justify-between items-center p-4 bg-white/5 rounded-lg border border-white/5">
+            <div>
+              <p class="font-bold text-gray-200">Enable AI Auto-Scan</p>
+              <p class="text-xs text-gray-500">Automatically scan evidence for detections.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="conf_ai_scan" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-purple-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all">
+              </div>
+            </label>
+          </div>
+
+          <div class="flex justify-between items-center p-4 bg-white/5 rounded-lg border border-white/5">
+            <div>
+              <p class="font-bold text-gray-200">System Lockdown</p>
+              <p class="text-xs text-gray-500">Restrict all non-admin access.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="conf_lockdown" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-red-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all">
+              </div>
+            </label>
+          </div>
+
+          <div>
+            <label class="text-sm text-gray-400 mb-2 block">Default Alert Message</label>
+            <input id="conf_alert_msg" type="text"
+              class="w-full glass p-3 rounded text-white border-white/10 outline-none"
+              placeholder="Emergency! Please evacuate...">
+          </div>
+        </div>
+
         <!-- Detection Settings -->
         <div class="glass p-6 rounded-xl space-y-6">
           <h3 class="text-lg font-bold text-green-400 border-b border-white/10 pb-2">Detection Parameters</h3>
@@ -1140,63 +1118,17 @@
           <label class="block">
             <div class="flex justify-between mb-2">
               <span class="text-sm text-gray-300">Alert Confidence Threshold</span>
-              <span class="text-xs text-gray-500">Min score to trigger alert</span>
             </div>
             <input id="threshold" type="number" value="80"
               class="w-full glass p-2 rounded focus:outline-none focus:border-green-500 transition-colors text-white">
           </label>
-
-          <div class="flex items-center justify-between p-3 glass rounded-lg border border-red-500/20">
-            <span class="text-red-300 font-bold">Maintenance Mode</span>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="maintMode" class="sr-only peer">
-              <div
-                class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600">
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- Notification & Data -->
-        <div class="glass p-6 rounded-xl space-y-6">
-          <h3 class="text-lg font-bold text-blue-400 border-b border-white/10 pb-2">Notifications & Storage</h3>
-
-          <div class="space-y-3">
-            <span class="text-sm text-gray-300 block">Alert Channels</span>
-
-            <label class="flex items-center space-x-3 cursor-pointer group">
-              <div
-                class="w-5 h-5 glass rounded border border-gray-600 flex items-center justify-center group-hover:border-green-500">
-                <input type="checkbox" checked class="accent-green-500 h-4 w-4">
-              </div>
-              <span class="text-gray-400 text-sm group-hover:text-white transition">Email Notifications</span>
-            </label>
-
-            <label class="flex items-center space-x-3 cursor-pointer group">
-              <div
-                class="w-5 h-5 glass rounded border border-gray-600 flex items-center justify-center group-hover:border-green-500">
-                <input type="checkbox" class="accent-green-500 h-4 w-4">
-              </div>
-              <span class="text-gray-400 text-sm group-hover:text-white transition">SMS Alerts</span>
-            </label>
-          </div>
-
-          <label class="block pt-4 border-t border-white/5">
-            <div class="flex justify-between mb-2">
-              <span class="text-sm text-gray-300">Log Retention (Days)</span>
-              <span id="retenVal" class="text-blue-400 font-bold">30 Days</span>
-            </div>
-            <input id="retention" type="range" min="7" max="365" value="30"
-              class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              oninput="document.getElementById('retenVal').innerText = this.value + ' Days'">
-          </label>
         </div>
       </div>
 
-      <div class="mt-8 flex justify-end">
-        <button onclick="saveSettings()"
-          class="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all">
-          Save Configuration
+      <div class="mt-8 flex justify-end gap-4">
+        <button onclick="saveAllConfig()"
+          class="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:scale-[1.02] transition-all" data-i18n="save_all_settings">
+          Save All Settings
         </button>
       </div>
 
@@ -1210,8 +1142,8 @@
         <!-- Decoration -->
         <div class="absolute -top-10 -right-10 w-32 h-32 bg-green-500/20 rounded-full blur-3xl pointer-events-none">
         </div>
-
-        <h1 class="section-title text-center mb-8">Admin Profile</h1>
+ 
+        <h1 class="section-title text-center mb-8" data-i18n="admin_profile">Admin Profile</h1>
 
         <!-- Profile Picture -->
         <div class="flex flex-col items-center gap-4 mb-6">
@@ -1244,7 +1176,7 @@
           </div>
 
           <button onclick="saveProfile()"
-            class="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white p-3 rounded-lg font-bold hover:shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all duration-300 mt-4">
+            class="w-full bg-gradient-to-r from-green-600 to-emerald-700 text-white p-3 rounded-lg font-bold hover:shadow-lg hover:shadow-green-500/20 hover:scale-[1.02] transition-all duration-300 mt-4" data-i18n="save_changes">
             Save Changes
           </button>
 
@@ -1256,11 +1188,6 @@
       </div>
     </section>
 
-    <!-- HELP & FAQ -->
-    <section id="help" class="section hidden">
-        <h1 class="text-3xl font-bold mb-6 tracking-tight">Help & FAQ</h1>
-        {% include 'component_help.html' %}
-    </section>
 
     {% include 'component_chatbot.html' %}
   </main>
@@ -1269,278 +1196,135 @@
     function shareAlert(message, source) {
       const text = `ALERT REPORT\nSource: ${source}\nMessage: ${message}\n- NETRA System`;
       const encodedText = encodeURIComponent(text);
-
-      // Simple selection dialog logic (using browser native for simplicity or creating a modal)
-      // For quick implementation:
       const choice = prompt("Share via (type number):\n1. WhatsApp\n2. Email", "1");
-
-      if (choice === '1') {
-        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-      } else if (choice === '2') {
-        window.location.href = `mailto:?subject=NETRA%20Alert&body=${encodedText}`;
-      }
+      if (choice === '1') window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+      else if (choice === '2') window.location.href = `mailto:?subject=NETRA%20Alert&body=${encodedText}`;
     }
 
     /* ---------- DASHBOARD CHARTS ---------- */
-    /* ---------- DASHBOARD CHARTS ---------- */
-    let cpuChart, memChart;
+    let cpuChart, memChart, statusChart, activityChart;
 
     function loadCharts() {
-      // Safe Data Injection
+      // OVERVIEW CHARTS
       const pendingCount = Number("{{ stats.cases }}") - Number("{{ stats.resolved }}");
       const resolvedCount = Number("{{ stats.resolved }}");
 
-      // Status Distribution
-      new Chart(document.getElementById("overviewStatusChart"), {
-        type: "doughnut",
-        data: {
-          labels: ["Pending", "Resolved", "Investigating"],
-          datasets: [{
-            data: [pendingCount, resolvedCount, 0],
-            backgroundColor: ["#eab308", "#3b82f6", "#facc15"],
-            borderWidth: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'right', labels: { color: "#9ca3af" } } }
-        }
-      });
-
-      // Activity Trend (Dummy Data for visual)
-      new Chart(document.getElementById("overviewActivityChart"), {
-        type: "line",
-        data: {
-          labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-          datasets: [{
-            label: "System Activity",
-            data: [12, 19, 3, 5, 2, 3, 10],
-            borderColor: "#13ec5b",
-            tension: 0.4,
-            fill: true,
-            backgroundColor: "rgba(19, 236, 91, 0.1)"
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: { ticks: { color: "#6b7280" }, grid: { display: false } },
-            y: { ticks: { color: "#6b7280" }, grid: { color: "#374151" } }
+      const ctxStatus = document.getElementById("overviewStatusChart");
+      if (ctxStatus) {
+        if (statusChart) statusChart.destroy();
+        statusChart = new Chart(ctxStatus, {
+          type: "doughnut",
+          data: {
+            labels: ["Pending", "Resolved"],
+            datasets: [{ data: [pendingCount, resolvedCount], backgroundColor: ["#eab308", "#3b82f6"], borderWidth: 0 }]
           },
-          plugins: { legend: { display: false } }
-        }
-      });
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: "#9ca3af" } } } }
+        });
+      }
+
+      const ctxActivity = document.getElementById("overviewActivityChart");
+      if (ctxActivity) {
+        if (activityChart) activityChart.destroy();
+        activityChart = new Chart(ctxActivity, {
+          type: "line",
+          data: {
+            labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            datasets: [{ label: "Activity", data: [12, 19, 3, 5, 2, 3, 10], borderColor: "#13ec5b", tension: 0.4, fill: true, backgroundColor: "rgba(19, 236, 91, 0.1)" }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#6b7280" } }, y: { ticks: { color: "#6b7280" } } }, plugins: { legend: { display: false } } }
+        });
+      }
 
       initHealthCharts();
     }
 
-    /* --- HEALTH CHARTS --- */
     function initHealthCharts() {
-      // CPU Chart
-      const cpuCtx = document.getElementById("cpuChart").getContext('2d');
-      cpuChart = new Chart(cpuCtx, {
-        type: 'line',
-        data: {
-          labels: Array(20).fill(''),
-          datasets: [{
-            label: 'CPU %',
-            data: Array(20).fill(0),
-            borderColor: '#4ade80',
-            borderWidth: 2,
-            backgroundColor: 'rgba(74, 222, 128, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          scales: {
-            y: { min: 0, max: 100, grid: { color: '#374151' }, ticks: { color: '#9ca3af' } },
-            x: { display: false }
-          },
-          plugins: { legend: { display: false } }
-        }
-      });
-
-      // Memory Chart
-      const memCtx = document.getElementById("memChart").getContext('2d');
-      memChart = new Chart(memCtx, {
-        type: 'line',
-        data: {
-          labels: Array(20).fill(''),
-          datasets: [{
-            label: 'RAM %',
-            data: Array(20).fill(0),
-            borderColor: '#60a5fa',
-            borderWidth: 2,
-            backgroundColor: 'rgba(96, 165, 250, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          scales: {
-            y: { min: 0, max: 100, grid: { color: '#374151' }, ticks: { color: '#9ca3af' } },
-            x: { display: false }
-          },
-          plugins: { legend: { display: false } }
-        }
-      });
-
-      // Start Polling
+      const cpuCtx = document.getElementById("cpuChart");
+      if (cpuCtx) {
+        cpuChart = new Chart(cpuCtx.getContext('2d'), {
+          type: 'line',
+          data: { labels: Array(20).fill(''), datasets: [{ label: 'CPU %', data: Array(20).fill(0), borderColor: '#4ade80', fill: true, backgroundColor: 'rgba(74, 222, 128, 0.1)', tension: 0.4, pointRadius: 0 }] },
+          options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { min: 0, max: 100 }, x: { display: false } }, plugins: { legend: { display: false } } }
+        });
+      }
+      const memCtx = document.getElementById("memChart");
+      if (memCtx) {
+        memChart = new Chart(memCtx.getContext('2d'), {
+          type: 'line',
+          data: { labels: Array(20).fill(''), datasets: [{ label: 'RAM %', data: Array(20).fill(0), borderColor: '#60a5fa', fill: true, backgroundColor: 'rgba(96, 165, 250, 0.1)', tension: 0.4, pointRadius: 0 }] },
+          options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { min: 0, max: 100 }, x: { display: false } }, plugins: { legend: { display: false } } }
+        });
+      }
       setInterval(fetchHealthStats, 2000);
     }
 
     async function fetchHealthStats() {
-      // Only fetch if Health section is visible to save resources
       if (document.getElementById('health').classList.contains('hidden')) return;
-
       try {
         const res = await fetch('/api/system_stats');
         const data = await res.json();
-
-        updateChart(cpuChart, data.cpu);
-        updateChart(memChart, data.memory);
-      } catch (e) { console.error("Health fetch failed", e); }
+        if (cpuChart) { cpuChart.data.datasets[0].data.push(data.cpu); cpuChart.data.datasets[0].data.shift(); cpuChart.update(); }
+        if (memChart) { memChart.data.datasets[0].data.push(data.memory); memChart.data.datasets[0].data.shift(); memChart.update(); }
+      } catch (e) { }
     }
 
-    function updateChart(chart, newValue) {
-      const data = chart.data.datasets[0].data;
-      data.push(newValue);
-      data.shift(); // Remove oldest
-      chart.update();
-    }
+    /* ---------- CONFIG & SETTINGS ---------- */
+    async function saveAllConfig() {
+      const data = {
+        'ai_scan': document.getElementById('conf_ai_scan').checked ? 'true' : 'false',
+        'lockdown': document.getElementById('conf_lockdown').checked ? 'true' : 'false',
+        'alert_msg': document.getElementById('conf_alert_msg').value
+      };
+      try {
+        const res = await fetch('/api/update_system_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        localStorage.setItem("sensitivity", document.getElementById('sensitivity').value);
+        localStorage.setItem("threshold", document.getElementById('threshold').value);
 
-    async function saveSettings() {
-      const sensitivity = document.getElementById('sensitivity').value;
-      const threshold = document.getElementById('threshold').value;
-      const maintenance = document.getElementById('maintMode').checked;
-      const retention = document.getElementById('retention').value;
-
-      const config = { sensitivity, threshold, maintenance, retention };
-
-      // Simulate API call
-      // In real app: fetch('/api/update_config', { method: 'POST', ... })
-
-      const btn = event.target;
-      const originalText = btn.innerText;
-      btn.innerText = "Saving...";
-
-      setTimeout(() => {
-        btn.innerText = originalText;
         const msg = document.getElementById("savedMsg");
         msg.classList.remove("hidden");
         setTimeout(() => msg.classList.add("hidden"), 3000);
-        console.log("Configuration Saved:", config);
-      }, 800);
+      } catch (e) { alert("Error saving config"); }
     }
 
-
-
-    /* ---------- EXPORT REPORTS ---------- */
-    function exportReports() {
-      window.location.href = "/export_reports";
+    async function loadSystemConfig() {
+      try {
+        const res = await fetch('/api/get_system_config');
+        const config = await res.json();
+        if (config) {
+          document.getElementById('conf_ai_scan').checked = config['ai_scan'] === 'true';
+          document.getElementById('conf_lockdown').checked = config['lockdown'] === 'true';
+          document.getElementById('conf_alert_msg').value = config['alert_msg'] || '';
+        }
+      } catch (e) { }
     }
 
-    /* ---------- SIDEBAR ---------- */
-    function toggleSidebar() {
-      document.getElementById("sidebar").classList.toggle("-translate-x-full");
-      document.getElementById("overlay").classList.toggle("hidden");
-    }
-
-    /* Close sidebar logic moved to showSection */
-
-    /* ---------- LEAFLET MAP ---------- */
-    let mapInstance = null;
-    let heatLayer = null;
-
+    /* ---------- MAP ---------- */
+    let mapInstance = null, heatLayer = null;
     function initMap() {
       if (mapInstance) return;
       mapInstance = L.map('adminMap').setView([28.6139, 77.2090], 13);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 20
-      }).addTo(mapInstance);
-      L.marker([28.6139, 77.2090]).addTo(mapInstance).bindPopup("<b>HQ</b><br>Command Center").openPopup();
-
-      // Auto-load heatmap
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapInstance);
+      L.marker([28.6139, 77.2090]).addTo(mapInstance).bindPopup("HQ Center").openPopup();
       setTimeout(toggleHeatmap, 500);
     }
-
     async function toggleHeatmap() {
       if (!mapInstance) return;
-      if (heatLayer) {
-        mapInstance.removeLayer(heatLayer);
-        heatLayer = null;
-        return;
-      }
+      if (heatLayer) { mapInstance.removeLayer(heatLayer); heatLayer = null; return; }
       try {
         const res = await fetch('/api/heatmap_data');
         const points = await res.json();
-        heatLayer = L.heatLayer(points, {
-          radius: 30, blur: 20, maxZoom: 17,
-          gradient: { 0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red' }
-        }).addTo(mapInstance);
-      } catch (e) {
-        console.error(e);
-      }
+        heatLayer = L.heatLayer(points, { radius: 30, blur: 20, maxZoom: 17 }).addTo(mapInstance);
+      } catch (e) { }
     }
 
-    // Language Helper
-    function setLang(code, name) {
-      changeLanguage(code);
-      document.getElementById('currentLangLabel').innerText = name;
-      localStorage.setItem('netra_lang_name', name);
-    }
-
-    // On load, set label
-    window.addEventListener('load', () => {
-      const name = localStorage.getItem('netra_lang_name') || 'English';
-      const label = document.getElementById('currentLangLabel');
-      if (label) label.innerText = name;
-    });
-
-    /* ---------- SECTION SWITCHING ---------- */
-    function showSection(id, btn = null) {
-      document.querySelectorAll(".section").forEach(sec => sec.classList.add("hidden"));
-      const target = document.getElementById(id);
-      if (target) target.classList.remove("hidden");
-
-      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-      if (btn) btn.classList.add("active");
-
-      // Auto-hide sidebar
-      const sidebar = document.getElementById("sidebar");
-      const overlay = document.getElementById("overlay");
-      if (sidebar && !sidebar.classList.contains("-translate-x-full")) {
-        sidebar.classList.add("-translate-x-full");
-        overlay.classList.add("hidden");
-      }
-
-      // Map Resize
-      if (id === 'map') {
-        setTimeout(() => {
-          if (!mapInstance) initMap();
-          mapInstance.invalidateSize();
-        }, 100);
-      }
-    }
-
-    /* ---------- PROFILE IMAGE ---------- */
+    /* ---------- PROFILE & UI ---------- */
     function updateProfilePic(event) {
       const file = event.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = () => {
         localStorage.setItem("adminPic", reader.result);
@@ -1550,547 +1334,101 @@
       reader.readAsDataURL(file);
     }
 
-    /* ---------- SAVE PROFILE ---------- */
-    function saveProfile() {
-      const username = profileUsername.value.trim();
+    async function saveProfile() {
       const name = profileName.value.trim();
-
-      if (!username || !name) return alert("Fill all fields");
-
-      localStorage.setItem("adminUsername", username);
-      localStorage.setItem("adminName", name);
-
-      adminName.innerText = name;
-
-      profileSavedMsg.classList.remove("hidden");
-      setTimeout(() => profileSavedMsg.classList.add("hidden"), 2000);
-    }
-
-    /* ---------- USER MANAGEMENT ---------- */
-    function addUser() {
-      const name = username.value;
-      const role = roleSelect.value;
-
-      if (!name) return alert("Enter username");
-
-      const li = document.createElement("li");
-      li.className = "flex justify-between bg-[#102216] p-2 rounded";
-      li.innerHTML = `${name} (${role})
-    <button class="text-red-400" onclick="this.parentElement.remove()">Remove</button>`;
-
-      userList.appendChild(li);
-      username.value = "";
-    }
-
-    /* ---------- ALERT ACK ---------- */
-    async function acknowledge(btn, alertId) {
-      if (!confirm("Are you sure you want to acknowledge this alert?")) return;
-
+      const username = profileUsername.value.trim();
+      if (!name || !username) return alert("All fields required");
       try {
-        const res = await fetch('/api/update_alert_status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: alertId, status: 'Resolved' })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          btn.closest('.alert').remove();
-          if (!document.querySelectorAll('#alertContainer .alert').length) {
-            const noAlerts = document.getElementById('noAlerts');
-            const noAlertsDyn = document.getElementById('noAlertsDynamic');
-            if (noAlerts) noAlerts.classList.remove('hidden');
-            if (noAlertsDyn) noAlertsDyn.classList.remove('hidden');
-          }
-        } else {
-          alert("Error: " + data.error);
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Failed to acknowledge alert.");
-      }
-    }
-
-    /* ---------- SAVE SETTINGS ---------- */
-    function saveSettings() {
-      localStorage.setItem("sensitivity", sensitivity.value);
-      localStorage.setItem("threshold", threshold.value);
-
-      savedMsg.classList.remove("hidden");
-      setTimeout(() => savedMsg.classList.add("hidden"), 2000);
-    }
-
-    async function sendMessage() {
-      const recipient = document.getElementById('msgRecipient').value;
-      const content = document.getElementById('msgContent').value;
-
-      if (!content.trim()) return alert("Please enter a message.");
-
-      try {
-        const res = await fetch('/api/send_message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ receiver_id: recipient, content: content })
-        });
-        const data = await res.json();
-        if (data.success) {
-          // Ideally append to list dynamically, but reload is easiest for MVP
+        const res = await fetch('/api/update_profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+        if ((await res.json()).success) {
+          localStorage.setItem("adminName", name);
+          localStorage.setItem("adminUsername", username);
+          profileSavedMsg.classList.remove("hidden");
+          setTimeout(() => profileSavedMsg.classList.add("hidden"), 3000);
           window.location.reload();
-        } else {
-          alert("Error: " + data.error);
         }
-      } catch (err) {
-        console.error(err);
-        alert("Failed to send message.");
-      }
+      } catch (e) { alert("Error updating profile"); }
     }
 
-    async function triggerSimulation() {
-      if (!confirm("⚠️ TEST MODE: This will generate a CRITICAL ALERT in the system. Proceed?")) return;
-
-      try {
-        const res = await fetch('/api/trigger_simulation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'intrusion' })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          alert("🚨 SIMULATION TRIGGERED!\n\nAlert created: " + data.alert);
-          // Switch to alerts section to see it
-          showSection('alerts');
-          window.location.reload(); // Reload to fetch new alert from DB
-        } else {
-          alert("Error: " + data.error);
-        }
-      } catch (e) { console.error(e); }
+    function showSection(id, btn) {
+      document.querySelectorAll(".section").forEach(sec => sec.classList.add("hidden"));
+      document.getElementById(id).classList.remove("hidden");
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+      if (id === 'map') setTimeout(() => { initMap(); mapInstance.invalidateSize(); }, 200);
+      // Close sidebar
+      document.getElementById("sidebar").classList.add("-translate-x-full");
+      document.getElementById("overlay").classList.add("hidden");
     }
 
-    /* ---------- LOAD DATA ---------- */
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("-translate-x-full");
+      document.getElementById("overlay").classList.toggle("hidden");
+    }
+
+    /* ---------- INITIALIZATION ---------- */
     window.onload = () => {
       showSection("overview", document.querySelector(".nav-btn"));
+      loadCharts();
+      loadSystemConfig();
+      loadZones();
 
       if (localStorage.getItem("adminName")) {
-        adminName.innerText = localStorage.getItem("adminName");
         profileName.value = localStorage.getItem("adminName");
+        adminName.innerText = localStorage.getItem("adminName");
       }
-
-      if (localStorage.getItem("adminUsername"))
-        profileUsername.value = localStorage.getItem("adminUsername");
-
       if (localStorage.getItem("adminPic")) {
         profilePic.src = localStorage.getItem("adminPic");
         profilePreview.src = localStorage.getItem("adminPic");
       }
-
-      if (localStorage.getItem("sensitivity"))
-        sensitivity.value = localStorage.getItem("sensitivity");
-
-      if (localStorage.getItem("threshold"))
-        threshold.value = localStorage.getItem("threshold");
-      loadCharts();
+      if (localStorage.getItem("sensitivity")) sensitivity.value = localStorage.getItem("sensitivity");
+      if (localStorage.getItem("threshold")) threshold.value = localStorage.getItem("threshold");
     };
 
-    // Chart instances
-    let statusChart, activityChart;
-
-    async function loadCharts() {
+    /* ---------- OTHER UTILS ---------- */
+    async function acknowledge(btn, alertId) {
+      if (!confirm("Acknowledge alert?")) return;
       try {
-        const res = await fetch('/api/analytics_data');
-        if (!res.ok) return;
-        const data = await res.json();
-
-        // 1. Overview Status (Doughnut)
-        const ctxStatus = document.getElementById("overviewStatusChart").getContext("2d");
-        const severityLabels = Object.keys(data.severity);
-        const severityValues = Object.values(data.severity);
-
-        if (statusChart) statusChart.destroy();
-        statusChart = new Chart(ctxStatus, {
-          type: "doughnut",
-          data: {
-            labels: severityLabels.length ? severityLabels : ["No Data"],
-            datasets: [{
-              data: severityValues.length ? severityValues : [1],
-              backgroundColor: ["#ef4444", "#eab308", "#22c55e", "#3b82f6"],
-              borderColor: "#050b07",
-              borderWidth: 2
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: "right", labels: { color: "#fff" } } }
-          }
-        });
-
-        // 2. Activity Trend (Line)
-        const ctxActivity = document.getElementById("overviewActivityChart").getContext("2d");
-        const trendLabels = Object.keys(data.trend);
-        const trendValues = Object.values(data.trend);
-
-        if (activityChart) activityChart.destroy();
-        activityChart = new Chart(ctxActivity, {
-          type: "line",
-          data: {
-            labels: trendLabels,
-            datasets: [{
-              label: "Alerts per Day",
-              data: trendValues,
-              borderColor: "#10b981",
-              backgroundColor: "rgba(16, 185, 129, 0.2)",
-              fill: true,
-              tension: 0.4
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              x: { ticks: { color: "#9ca3af" }, grid: { color: "#374151" } },
-              y: { ticks: { color: "#9ca3af", stepSize: 1 }, grid: { color: "#374151" } }
-            },
-            plugins: { legend: { display: false } }
-          }
-        });
-
-      } catch (e) {
-        console.error("Chart Load Error:", e);
-      }
+        const res = await fetch('/api/update_alert_status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: alertId, status: 'Resolved' }) });
+        if ((await res.json()).success) btn.closest('.alert').remove();
+      } catch (e) { }
     }
 
-    /* ---------- USER STATUS UPDATE ---------- */
-    async function updateUserStatus(userId, status) {
-      if (!confirm(`Are you sure you want to ${status} this user?`)) return;
-
-      try {
-        const res = await fetch('/api/update_user_status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: userId, status: status })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          document.getElementById(`user-row-${userId}`).remove();
-          // Optional: Reload if empty to remove the panel
-        } else {
-          alert("Action failed: " + data.error);
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Server error");
-      }
+    function exportReports() {
+      const rows = document.querySelectorAll("#finesTableBody tr");
+      let csv = "ID,Violator,Reason,Amount,Status,Date\n";
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        if (cols.length > 0) csv += `${cols[0].innerText.replace('#', '')},${cols[1].innerText},${cols[2].innerText},${cols[3].innerText.replace('₹', '')},${cols[5].innerText.trim()},${cols[6].innerText}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'fines_report.csv'; a.click();
     }
 
-    /* ---------- USER ROLE UPDATE ---------- */
-    async function updateUserRole(userId) {
-      const select = document.getElementById(`role-select-${userId}`);
-      const newRole = select.value;
-
-      try {
-        const res = await fetch('/api/update_user_role', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: userId, sub_role: newRole })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          // Visual feedback
-          const btn = select.nextElementSibling;
-          const originalHTML = btn.innerHTML;
-          btn.innerHTML = '✔';
-          btn.classList.add('text-green-500');
-          setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.classList.remove('text-green-500');
-            window.location.reload(); // Reload to update the "Current Role" badge
-          }, 1000);
-        } else {
-          alert("Update failed: " + data.error);
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Server error");
-      }
-    }
-
-    /* ---------- RESTRICTED ZONES ---------- */
-    async function addZone() {
-      const name = document.getElementById('zoneName').value;
-      const coords = document.getElementById('zoneCoords').value;
-      const start = document.getElementById('zoneStart').value;
-      const end = document.getElementById('zoneEnd').value;
-      const type = document.getElementById('zoneType').value;
-
-      if (!name || !start || !end) return alert("Please fill all fields");
-
-      try {
-        const res = await fetch('/api/add_zone', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, coordinates: coords, start_time: start, end_time: end, violation_type: type })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert("Zone added successfully");
-          loadZones();
-          document.getElementById('zoneName').value = "";
-        } else {
-          alert("Error: " + data.error);
-        }
-      } catch (e) { alert("Server Error"); }
+    function filterFines() {
+      const q = document.getElementById('fineSearch').value.toLowerCase();
+      const type = document.getElementById('fineFilter').value;
+      document.querySelectorAll('.fine-row').forEach(row => {
+        const match = row.getAttribute('data-content').toLowerCase().includes(q) && (type === 'all' || row.getAttribute('data-status') === type);
+        row.style.display = match ? '' : 'none';
+      });
     }
 
     async function loadZones() {
       try {
         const res = await fetch('/api/get_zones');
         const zones = await res.json();
-        const container = document.getElementById('zoneListContainer');
-
-        if (zones.length === 0) {
-          container.innerHTML = '<p class="text-gray-500 italic text-center py-4">No active zones.</p>';
-          return;
-        }
-
-        container.innerHTML = zones.map(z => `
+        document.getElementById('zoneListContainer').innerHTML = zones.map(z => `
           <div class="bg-white/5 p-3 rounded flex justify-between items-center border-l-2 border-red-500">
-            <div>
-              <p class="font-bold text-gray-200 text-sm">${z.name}</p>
-              <p class="text-xs text-red-400 font-mono">${z.start_time} - ${z.end_time}</p>
-              <p class="text-[10px] text-gray-500">${z.violation_type}</p>
-            </div>
+            <div><p class="font-bold text-gray-200 text-sm">${z.name}</p></div>
             <button onclick="deleteZone(${z.id})" class="text-gray-400 hover:text-red-500 text-lg">×</button>
-          </div>
-        `).join('');
-      } catch (e) { console.error(e); }
-    }
-
-    async function deleteZone(id) {
-      if (!confirm("Deactivate this zone?")) return;
-      try {
-        await fetch('/api/delete_zone', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id })
-        });
-        loadZones();
+          </div>`).join('');
       } catch (e) { }
     }
-
-    /* ---------- SYSTEM CONFIG ---------- */
-    async function loadSystemConfig() {
-      try {
-        const res = await fetch('/api/get_system_config');
-        const config = await res.json();
-
-        if (config) {
-          document.getElementById('conf_ai_scan').checked = config['ai_scan'] === 'true';
-          document.getElementById('conf_lockdown').checked = config['lockdown'] === 'true';
-          document.getElementById('conf_alert_msg').value = config['alert_msg'] || '';
-        }
-      } catch (e) { console.error(e); }
-    }
-
-    async function saveSystemConfig() {
-      const data = {
-        'ai_scan': document.getElementById('conf_ai_scan').checked ? 'true' : 'false',
-        'lockdown': document.getElementById('conf_lockdown').checked ? 'true' : 'false',
-        'alert_msg': document.getElementById('conf_alert_msg').value
-      };
-
-      try {
-        const res = await fetch('/api/update_system_config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const resp = await res.json();
-        if (resp.success) alert("Configuration Saved.");
-        else alert("Error saving config.");
-      } catch (e) {
-        alert("Server Error");
-      }
-    }
-
-    /* ---------- REASSIGN CASE ---------- */
-    async function reassignCase(caseId) {
-      const select = document.getElementById(`transfer-select-${caseId}`);
-      const officerId = select.value;
-
-      if (!officerId) return alert("Please select an officer to transfer the case to.");
-
-      if (!confirm("Confirm case transfer?")) return;
-
-      try {
-        const res = await fetch('/api/reassign_case', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ case_id: caseId, officer_id: officerId })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          alert("Case reassigned successfully.");
-          window.location.reload();
-        } else {
-          alert("Transfer failed: " + data.error);
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Server error");
-      }
-    }
-
-    /* ---------- POLLING & NOTIFICATIONS ---------- */
-    let lastMsgId = 0;
-    let lastAlertId = 0;
-    let serverMaxMsgId = 0;
-
-    async function pollState() {
-      try {
-        const res = await fetch('/api/sync_state');
-        if (!res.ok) return;
-        const data = await res.json();
-
-        serverMaxMsgId = data.latest_msg_id;
-
-        // On first run, valid IDs -> set baseline
-        if (lastMsgId === 0 && lastAlertId === 0) {
-          lastMsgId = data.latest_msg_id;
-          lastAlertId = data.latest_alert_id;
-          return;
-        }
-
-        // Check for updates
-        const dot = document.getElementById('notificationDot');
-        if (data.latest_msg_id > lastMsgId) {
-          dot.classList.remove('hidden');
-        }
-      } catch (e) { console.error("Poll error", e); }
-    }
-
-    function exportReports() {
-      // Simple client-side CSV export of the fines table
-      const rows = document.querySelectorAll("#finesTableBody tr");
-      let csv = "ID,Violator,Reason,Amount,Status,Date\n";
-
-      rows.forEach(row => {
-        const cols = row.querySelectorAll("td");
-        if (cols.length > 0) {
-          const id = cols[0].innerText.replace('#', '');
-          const name = cols[1].innerText;
-          const reason = cols[2].innerText;
-          const amount = cols[3].innerText.replace('₹', '');
-          const status = cols[5].innerText.trim();
-          const date = cols[6].innerText;
-          csv += `${id},${name},${reason},${amount},${status},${date}\n`;
-        }
-      });
-
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.setAttribute('hidden', '');
-      a.setAttribute('href', url);
-      a.setAttribute('download', 'netra_global_report.csv');
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      alert("Report Downloaded!");
-    }
-
-    function markSeen() {
-      document.getElementById('notificationDot').classList.add('hidden');
-      if (serverMaxMsgId > 0) lastMsgId = serverMaxMsgId;
-    }
-
-    // Poll every 5s
-    setInterval(pollState, 5000);
-    pollState();
-
-    /* ---------- SYSTEM CONFIG ---------- */
-    async function loadSystemConfig() {
-      try {
-        const res = await fetch('/api/get_system_config');
-        const config = await res.json();
-
-        if (config) {
-          document.getElementById('conf_ai_scan').checked = config['ai_scan'] === 'true';
-          document.getElementById('conf_lockdown').checked = config['lockdown'] === 'true';
-          document.getElementById('conf_alert_msg').value = config['alert_msg'] || '';
-        }
-      } catch (e) { console.error(e); }
-    }
-
-    async function saveSystemConfig() {
-      const data = {
-        'ai_scan': document.getElementById('conf_ai_scan').checked ? 'true' : 'false',
-        'lockdown': document.getElementById('conf_lockdown').checked ? 'true' : 'false',
-        'alert_msg': document.getElementById('conf_alert_msg').value
-      };
-
-      try {
-        const res = await fetch('/api/update_system_config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const resp = await res.json();
-        if (resp.success) alert("Configuration Saved.");
-        else alert("Error saving config.");
-      } catch (e) {
-        alert("Server Error");
-      }
-    }
-
-    /* ---------- FINE FILTERS ---------- */
-    function filterFines() {
-      const query = document.getElementById('fineSearch').value.toLowerCase();
-      const type = document.getElementById('fineFilter').value;
-      const rows = document.querySelectorAll('.fine-row');
-
-      rows.forEach(row => {
-        const content = row.getAttribute('data-content').toLowerCase();
-        const status = row.getAttribute('data-status');
-
-        let matchQuery = content.includes(query);
-        let matchType = (type === 'all') || (status === type);
-
-        if (matchQuery && matchType) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    /* ---------- APPROVE PUBLIC ENTRY (NEW) ---------- */
-    async function approvePublicEntry(entryId) {
-      if (!confirm("Approve this entry? This will allow the visitor to pass inspection.")) return;
-
-      try {
-        const res = await fetch('/api/approve_public_entry', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: entryId })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert("Entry Approved!");
-          window.location.reload();
-        } else {
-          alert("Error: " + data.error);
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Server Error");
-      }
-    }
   </script>
-  <!-- STYLES -->
+
   <style>
     .nav-btn {
       width: 100%;
@@ -2107,28 +1445,6 @@
       color: #13ec5b;
     }
 
-    .lang-opt {
-      width: 100%;
-      text-align: left;
-      padding: 8px 12px;
-      font-size: 0.75rem;
-      color: #d1d5db;
-      border-radius: 4px;
-      transition: all 0.2s;
-    }
-
-    .lang-opt:hover {
-      background-color: rgba(19, 236, 91, 0.2);
-      color: #13ec5b;
-    }
-
-    .card {
-      background: #1a2e22;
-      padding: 16px;
-      border-radius: 8px;
-      text-align: center;
-    }
-
     .stat {
       font-size: 1.6rem;
       font-weight: bold;
@@ -2137,17 +1453,6 @@
     .section-title {
       font-size: 1.5rem;
       margin-bottom: 1rem;
-    }
-
-    .panel {
-      background: #1a2e22;
-      padding: 16px;
-      border-radius: 8px;
-    }
-
-    .panel-title {
-      font-weight: bold;
-      margin-bottom: 6px;
     }
 
     .btn {
@@ -2181,16 +1486,24 @@
       border-radius: 4px;
     }
 
-    .cam {
-      background: black;
+    .cam-feed {
+      background-color: #000;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       height: 180px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
+    }
+
+    .cam-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: rgba(0, 255, 0, 0.8);
+      font-family: monospace;
+      font-size: 0.75rem;
+      z-index: 10;
     }
   </style>
-
   <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
 </body>
 
