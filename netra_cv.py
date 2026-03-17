@@ -3,12 +3,14 @@ import numpy as np
 import os
 import time
 from datetime import datetime
+import requests
 
 # --- CONFIGURATION ---
 CROWD_THRESHOLD = 5  # Number of people to trigger alert
 MOTION_THRESHOLD = 5000  # Area of movement to trigger motion alert
 ALERT_COOLDOWN = 5  # Seconds between automated snapshots
 SNAPSHOT_DIR = "alerts"
+ESP32_URL = "http://10.71.228.138"
 
 # Ensure alert directory exists
 if not os.path.exists(SNAPSHOT_DIR):
@@ -82,6 +84,14 @@ def start_netra_cv():
                 filename = os.path.join(SNAPSHOT_DIR, f"alert_{timestamp}.jpg")
                 cv2.imwrite(filename, original_frame)
                 print(f"[ALERT] Crowd threshold exceeded! Snapshot saved: {filename}")
+                
+                # Trigger the ESP32 Alarm over Wi-Fi
+                try:
+                    requests.get(f"{ESP32_URL}/buzzer/on", timeout=2)
+                    print("🔊 Triggered ESP32 Alarm System!")
+                except Exception as e:
+                    print(f"Failed to reach ESP32: {e}")
+                    
                 last_alert_time = current_time
 
         # --- UI OVERLAY ---

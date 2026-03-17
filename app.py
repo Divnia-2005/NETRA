@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, send_file, Response, make_response
 import time
+import requests
 import os
 os.environ["OPENCV_LOG_LEVEL"] = "FATAL"
 import cv2
@@ -113,6 +114,8 @@ LAST_DB_ALERT_TIME = {i: 0 for i in range(8)} # Rate limit DB writes
 CROWD_THRESHOLD = 6 # Count > 5 to alert
 CAM_DISPLAY_NAMES = ["GATE-MAIN", "LOBBY-SEC", "CORRIDOR-A", "EXIT-WEST", 
                      "PARKING-01", "ROOF-SOUTH", "SERVER-02", "DOCK-B"]
+ALARM_MUTED_UNTIL = 0    # Timestamp until which AI alarm is disabled
+LAST_BUZZER_ON_TIME = 0  # Cooldown for sending network requests to ESP32
 for i, name in enumerate(CAM_DISPLAY_NAMES):
     LATEST_CROWD_DATA[i]["name"] = name
 
@@ -160,6 +163,12 @@ class CameraStream:
                 person_count = len(scaled_rects)
                 is_alert = person_count >= 5 # "Reaches 5 or more"
                 
+                global ALARM_MUTED_UNTIL, LAST_BUZZER_ON_TIME
+                if not is_alert:
+                    # Clear mute early if crowd is gone, so it's ready for future alerts
+                    if time.time() < ALARM_MUTED_UNTIL:
+                        ALARM_MUTED_UNTIL = 0
+                
                 display_frame = frame.copy()
                 status_color = (19, 236, 91) if not is_alert else (0, 0, 255)
                 
@@ -200,6 +209,18 @@ class CameraStream:
                             LAST_DB_ALERT_TIME['global'] = current_time
                         except Exception as e:
                             print(f"DEBUG: Alert Log Failed (Check MySQL): {e}")
+
+                        # --- IoT ALERT TRIGGER (WITH COOLDOWN & MUTE) ---
+                        current_time = time.time()
+                        
+                        # Only trigger if not manually muted AND at least 5 seconds since last 'ON' request
+                        if current_time > ALARM_MUTED_UNTIL and (current_time - LAST_BUZZER_ON_TIME > 5):
+                            try:
+                                requests.get("http://10.71.228.138/buzzer/on", timeout=1)
+                                print("🔊 AI: Crowd Detected, Triggering ESP32 Alarm!")
+                                LAST_BUZZER_ON_TIME = current_time
+                            except Exception as e:
+                                print(f"DEBUG: Failed to reach ESP32: {e}")
 
             else:
                 self.error_count += 1
@@ -270,13 +291,54 @@ def gen_frames(camera_index=0):
                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         time.sleep(0.04) # Limit FPS to save bandwidth/connections
 
+# ESP32 IP Configuration
+ESP32_URL = "http://10.71.228.138"
+
+@app.route("/api/iot/alert", methods=["POST"])
+def iot_alert():
+    data = request.get_json()
+    if data:
+        device_id = data.get("device_id")
+        alert_type = data.get("alert_type")
+        print(f"📡 IoT Alert Received - Device: {device_id}, Type: {alert_type}")
+        
+        # Log to DB (optional)
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            alert_msg = f"IoT SENSOR ALERT: {alert_type} detected by {device_id}"
+            cur.execute("""
+                INSERT INTO alerts (source, message, severity, status, created_at)
+                VALUES (%s, %s, 'High', 'Open', NOW())
+            """, (device_id, alert_msg))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"DEBUG: IoT Alert Log Failed: {e}")
+            
+    return jsonify({"success": True, "message": "Alert processed"})
+
 @app.route("/api/stop_buzzer", methods=["POST"])
 def stop_buzzer():
     if "user" not in session:
         return jsonify({"success": False}), 401
-    # Logic for IOT Buzzer Stop would go here
-    print("DEBUG: Stop Buzzer Command Received")
-    return jsonify({"success": True, "message": "Buzzer Stopped"})
+        
+    print("DEBUG: Sending Stop Buzzer Command to ESP32")
+    
+    global ALARM_MUTED_UNTIL
+    # Set mute flag for 30 seconds to allow officer to clear the area
+    ALARM_MUTED_UNTIL = time.time() + 30 
+    
+    try:
+        # Send OFF command to ESP32
+        requests.get(f"{ESP32_URL}/buzzer/off", timeout=2)
+        print("🔊 Officer Manually Turned OFF ESP32 Alarm (Muted for 30s)!")
+    except Exception as e:
+        print(f"Failed to reach ESP32: {e}")
+        return jsonify({"success": False, "message": f"Failed to reach ESP32: {e}"})
+
+    return jsonify({"success": True, "message": "Buzzer Stopped for 30 seconds"})
 
 @app.route('/video_feed/<int:index>')
 def video_feed(index):
@@ -426,7 +488,7 @@ def google_callback():
             token,
             grequests.Request(),
             GOOGLE_CLIENT_ID,
-            clock_skew_in_seconds=10
+            clock_skew_in_seconds=60
         )
 
         name = idinfo["name"]
@@ -2424,5 +2486,5 @@ def update_system_config():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')
 
