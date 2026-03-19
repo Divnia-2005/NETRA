@@ -518,8 +518,8 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> LIVE
           </div>
-          <img src="/video_feed/0" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition"
-            alt="Cam 1">
+          <video id="webcam-feed" autoplay playsinline muted class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition"></video>
+          <canvas id="webcam-overlay" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
         </div>
         <!-- Cam 2 -->
         <div class="cam-feed rounded-xl h-40 relative group cursor-pointer" onclick="viewCamera('CAM-02 [LOBBY]')">
@@ -1391,6 +1391,46 @@
       document.getElementById('camLoading').classList.remove('hidden');
 
       const img = document.getElementById('camFullImg');
+      
+      // NEW: Show local browser webcam stream for CAM-01
+      if (title.includes('CAM-01')) {
+          const localVid = document.getElementById('webcam-feed');
+          if (localVid && localVid.srcObject) {
+              let enlargedVid = document.getElementById('camFullVideo');
+              let enlargedCanvas = document.getElementById('camFullOverlay');
+              if (!enlargedVid) {
+                  const wrapper = document.createElement('div');
+                  wrapper.className = 'absolute inset-0 z-20 pointer-events-none flex items-center justify-center';
+                  
+                  enlargedVid = document.createElement('video');
+                  enlargedVid.id = 'camFullVideo';
+                  enlargedVid.autoplay = true;
+                  enlargedVid.playsInline = true;
+                  enlargedVid.muted = true;
+                  enlargedVid.className = 'w-full h-full object-contain pointer-events-auto';
+                  
+                  enlargedCanvas = document.createElement('canvas');
+                  enlargedCanvas.id = 'camFullOverlay';
+                  enlargedCanvas.className = 'absolute inset-0 w-full h-full object-contain pointer-events-none';
+                  
+                  wrapper.appendChild(enlargedVid);
+                  wrapper.appendChild(enlargedCanvas);
+                  img.parentNode.insertBefore(wrapper, img);
+              }
+              img.classList.add('hidden');
+              enlargedVid.parentElement.classList.remove('hidden');
+              enlargedVid.srcObject = localVid.srcObject;
+              document.getElementById('camLoading').classList.add('hidden');
+              document.getElementById('camModal').classList.remove('hidden');
+              return;
+          }
+      }
+      
+      // Fallback for demo cams
+      const enlargedVid = document.getElementById('camFullVideo');
+      if (enlargedVid) enlargedVid.parentElement.classList.add('hidden');
+      img.classList.remove('hidden');
+
       const idx_map = {
         'CAM-01': 0, 'CAM-02': 1, 'CAM-03': 2, 'CAM-04': 3,
         'CAM-05': 4, 'CAM-06': 5, 'CAM-07': 6, 'CAM-08': 7
@@ -1819,6 +1859,13 @@
             // Only show AI/Camera alerts here
             const sourceName = alert.source.toUpperCase();
             if (sourceName.includes('CAM') || sourceName.includes('GATE') || sourceName.includes('AI')) {
+              const snapshotHtml = alert.snapshot_path 
+                  ? `<div class="h-24 bg-black rounded mb-3 overflow-hidden relative">
+                       <img src="/${alert.snapshot_path}" class="w-full h-full object-cover opacity-80" alt="Alert Snapshot">
+                       <div class="absolute inset-0 border-2 border-red-500 animate-pulse"></div>
+                     </div>` 
+                  : ``;
+
               const div = document.createElement('div');
               div.className = "min-w-[280px] bg-red-900/20 border border-red-500/40 p-3 rounded-xl animate-bounce-in";
               div.innerHTML = `
@@ -1827,6 +1874,7 @@
                       <span class="text-[10px] bg-red-500 text-white px-1.5 rounded">REAL-TIME</span>
                   </div>
                   <h3 class="font-bold text-sm text-white mb-1">AI Detection</h3>
+                  ${snapshotHtml}
                   <p class="text-xs text-gray-400 mb-3">${alert.message}</p>
                   <div class="flex gap-2">
                       <button onclick="updateStatus(${alert.id}, 'Resolved'); this.parentElement.parentElement.remove();" class="flex-1 bg-white/10 hover:bg-white/20 text-xs py-1.5 rounded">Acknowledge</button>
@@ -2750,7 +2798,84 @@
   </script>
 
   <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
+  <script>
+    // WEBCAM PROCESSING FOR CAM-01
+    document.addEventListener("DOMContentLoaded", async () => {
+      const video = document.getElementById('webcam-feed');
+      const overlay = document.getElementById('webcam-overlay');
+      if (!video || !overlay) return;
+
+      const offscreenCanvas = document.createElement('canvas');
+      const offscreenCtx = offscreenCanvas.getContext('2d');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+
+        video.onplaying = () => {
+          overlay.width = video.videoWidth;
+          overlay.height = video.videoHeight;
+          
+          window.addEventListener('resize', () => {
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+          });
+
+          setInterval(async () => {
+            offscreenCanvas.width = video.videoWidth;
+            offscreenCanvas.height = video.videoHeight;
+            offscreenCtx.drawImage(video, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            const frameBase64 = offscreenCanvas.toDataURL('image/jpeg', 0.6);
+
+            try {
+              const res = await fetch('/api/process_frame', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: frameBase64 })
+              });
+              const data = await res.json();
+              
+              const ctx = overlay.getContext('2d');
+              ctx.clearRect(0, 0, overlay.width, overlay.height);
+              
+              let largeCtx = null;
+              const largeCanvas = document.getElementById('camFullOverlay');
+              if (largeCanvas && !document.getElementById('camModal').classList.contains('hidden')) {
+                  largeCanvas.width = video.videoWidth;
+                  largeCanvas.height = video.videoHeight;
+                  largeCtx = largeCanvas.getContext('2d');
+                  largeCtx.clearRect(0, 0, largeCanvas.width, largeCanvas.height);
+              }
+              
+              if (data.success && data.rects) {
+                const drawBoxes = (context) => {
+                    context.strokeStyle = data.is_alert ? '#ff0000' : '#13ec5b';
+                    context.lineWidth = 3;
+                    context.font = 'bold 16px Courier New';
+                    context.fillStyle = data.is_alert ? '#ff0000' : '#13ec5b';
+
+                    data.rects.forEach(r => {
+                      context.strokeRect(r.x, r.y, r.w, r.h);
+                      context.fillText("TARGET", r.x, r.y - 5);
+                    });
+                };
+                
+                // Draw on small thumbnail
+                drawBoxes(ctx);
+                
+                // Draw on large modal if visible
+                if (largeCtx) {
+                    drawBoxes(largeCtx);
+                }
+              }
+            } catch (err) { }
+          }, 400);
+        };
+      } catch (err) {
+        console.error("Camera access denied or failed", err);
+        alert("Camera access denied! \n\n1. Ensure you are accessing via EXACTLY http://localhost:5000 (Browsers block cameras on http://192.168.x.x due to security rules). \n2. Ensure no other application (like Zoom or OpenCV) is using your webcam. \n3. Check your browser camera permissions.");
+      }
+    });
+  </script>
 </body>
-
-
 </html>

@@ -127,23 +127,8 @@ os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
 # --- Quick camera probe (runs once at startup, non-blocking) ---
 def _probe_camera():
-    """Returns camera index if any working camera found, else None (runs in demo mode)."""
-    # Try indices 0-3 with both default and DirectShow backends
-    for idx in range(4):
-        for backend in [None, cv2.CAP_DSHOW]:
-            try:
-                cap = cv2.VideoCapture(idx) if backend is None else cv2.VideoCapture(idx, backend)
-                if cap.isOpened():
-                    ret, _ = cap.read()
-                    cap.release()
-                    if ret:
-                        print(f"[NETRA] Physical camera successfully DETECTED at index {idx} (Backend: {backend})")
-                        return idx
-                if cap:
-                    cap.release()
-            except Exception:
-                pass
-    print("[NETRA] CRITICAL: No physical camera detected by OpenCV. Entering DEMO MODE.")
+    """Disabled backend camera grab to prevent hardware lock. Web handles camera."""
+    print("[NETRA] Backend Camera disabled. Using Web UI for Camera 0.")
     return None
 
 CAMERA_INDEX = _probe_camera()  # None → demo mode, int → real camera index
@@ -428,6 +413,88 @@ def video_feed(index):
     if index < 0 or index > 7:
         return "Not Found", 404
     return Response(gen_frames(index), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+import base64
+
+@app.route('/api/process_frame', methods=['POST'])
+def process_frame():
+    if "user" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    if not data or "image" not in data:
+        return jsonify({"success": False, "error": "No image data"}), 400
+        
+    image_data = data["image"]
+    
+    # Strip base64 header if present
+    if "base64," in image_data:
+        image_data = image_data.split("base64,")[1]
+        
+    try:
+        # Decode base64 to OpenCV image
+        img_bytes = base64.b64decode(image_data)
+        np_arr = np.frombuffer(img_bytes, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            return jsonify({"success": False, "error": "Invalid image"}), 400
+            
+        # Run Detection
+        small = cv2.resize(frame, (400, int(frame.shape[0] * 400 / frame.shape[1])))
+        (rects, _) = hog_detector.detectMultiScale(small, winStride=(8, 8), padding=(8, 8), scale=1.05)
+        
+        scale = frame.shape[1] / 400
+        scaled_rects = [{"x": int(x * scale), "y": int(y * scale), "w": int(w * scale), "h": int(h * scale)} for (x, y, w, h) in rects]
+        
+        person_count = len(scaled_rects)
+        is_alert = person_count >= 5
+        
+        global ALARM_MUTED_UNTIL, LAST_BUZZER_ON_TIME
+        if not is_alert and time.time() < ALARM_MUTED_UNTIL:
+            ALARM_MUTED_UNTIL = 0
+            
+        # Alert Logic
+        if is_alert:
+            current_time = time.time()
+            if current_time - LAST_DB_ALERT_TIME.get('global', 0) > 30:
+                try:
+                    conn = get_db()
+                    cur = conn.cursor()
+                    alert_msg = f"CROWD ALERT: {person_count} tracked individuals detected by Netra AI via Web."
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    snap_filename = f"crowd_alert_web_{timestamp}.jpg"
+                    snap_path = os.path.join(SNAPSHOT_DIR, snap_filename)
+                    cv2.imwrite(snap_path, frame)
+                    cur.execute("""
+                        INSERT INTO alerts (source, message, severity, status, created_at, snapshot_path)
+                        VALUES ('Netra-AI-Web', %s, 'Warning', 'Open', NOW(), %s)
+                    """, (alert_msg, f"static/snapshots/{snap_filename}"))
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                    LAST_DB_ALERT_TIME['global'] = current_time
+                except Exception as e:
+                    print(f"DEBUG: Web Alert Log Failed: {e}")
+
+            if current_time > ALARM_MUTED_UNTIL and (current_time - LAST_BUZZER_ON_TIME > 5):
+                try:
+                    requests.get(f"{ESP32_URL}/buzzer/on", timeout=1)
+                    print(f"WEB AI: Crowd Detected, Triggering ESP32 Alarm at {ESP32_URL}")
+                    LAST_BUZZER_ON_TIME = current_time
+                except Exception as e:
+                    print(f"DEBUG: Failed to reach ESP32 at {ESP32_URL}: {e}")
+                    
+        return jsonify({
+            "success": True, 
+            "person_count": person_count,
+            "is_alert": is_alert,
+            "rects": scaled_rects
+        })
+    except Exception as e:
+        print(f"Error processing web frame: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -1942,7 +2009,7 @@ def get_recent_alerts():
     cur = conn.cursor(dictionary=True)
     # Fetch last 5 open alerts
     cur.execute("""
-        SELECT id, source, message, severity, status, created_at 
+        SELECT id, source, message, severity, status, created_at, snapshot_path
         FROM alerts 
         WHERE status != 'Resolved'
         ORDER BY created_at DESC LIMIT 5

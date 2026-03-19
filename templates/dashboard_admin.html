@@ -813,8 +813,9 @@
           <div class="rec-indicator">
             <div class="rec-dot"></div> REC
           </div>
-          <img src="/video_feed/0"
-            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500">
+          <video id="webcam-feed" autoplay playsinline muted
+            class="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition duration-500"></video>
+          <canvas id="webcam-overlay" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
         </div>
         <!-- Cam 2 -->
         <div class="cam-feed rounded-xl relative group">
@@ -1579,6 +1580,70 @@
     }
   </style>
   <script src="{{ url_for('static', filename='js/translations.js') }}"></script>
-</body>
+  <script>
+    // WEBCAM PROCESSING FOR CAM-01
+    document.addEventListener("DOMContentLoaded", async () => {
+      const video = document.getElementById('webcam-feed');
+      const overlay = document.getElementById('webcam-overlay');
+      if (!video || !overlay) return;
 
+      const offscreenCanvas = document.createElement('canvas');
+      const offscreenCtx = offscreenCanvas.getContext('2d');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+
+        video.onplaying = () => {
+          overlay.width = video.videoWidth;
+          overlay.height = video.videoHeight;
+          
+          window.addEventListener('resize', () => {
+            // Keep native resolution for drawing accuracy;CSS scales it
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+          });
+
+          // Upload frame to backend every 300ms (3 FPS) for analysis
+          setInterval(async () => {
+            offscreenCanvas.width = video.videoWidth;
+            offscreenCanvas.height = video.videoHeight;
+            offscreenCtx.drawImage(video, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+            
+            // Generate JPEG string
+            const frameBase64 = offscreenCanvas.toDataURL('image/jpeg', 0.6);
+
+            try {
+              const res = await fetch('/api/process_frame', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: frameBase64 })
+              });
+              const data = await res.json();
+              
+              // Draw received detections
+              const ctx = overlay.getContext('2d');
+              ctx.clearRect(0, 0, overlay.width, overlay.height);
+              
+              if (data.success && data.rects) {
+                ctx.strokeStyle = data.is_alert ? 'red' : '#13ec5b';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 16px Courier New';
+                ctx.fillStyle = data.is_alert ? 'red' : '#13ec5b';
+
+                data.rects.forEach(r => {
+                  ctx.strokeRect(r.x, r.y, r.w, r.h);
+                  ctx.fillText("HUMAN", r.x, r.y - 5);
+                });
+              }
+            } catch (err) { }
+          }, 300);
+        };
+      } catch (err) {
+        console.error("Camera access denied or failed", err);
+        alert("Camera access denied! \n\n1. Ensure you are accessing via EXACTLY http://localhost:5000 (Browsers block cameras on http://192.168.x.x due to security rules).\n2. Ensure no other application (like Zoom or OpenCV) is using your webcam.\n3. Check your browser camera permissions.");
+      }
+    });
+  </script>
+</body>
 </html>
