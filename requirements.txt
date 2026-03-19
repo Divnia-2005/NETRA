@@ -7,9 +7,16 @@ PyMySQL==1.1.0
 google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 openpyxl==3.1.2
-opencv-python
+opencv-python-headless
 mysql-connector-python
 deep-translator
 selenium
 webdriver-manager
 gunicorn==21.2.0
+razorpay
+Flask
+gunicorn
+numpy
+opencv-python-headless
+razorpay
+

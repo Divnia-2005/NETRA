@@ -2243,7 +2243,7 @@ def verify_payment():
         return jsonify({"success": False, "error": str(e)}), 400
 
 # ---------------- RECEIPTS (PDF) ----------------
-from xhtml2pdf import pisa
+#from xhtml2pdf import pisa
 from io import BytesIO
 
 @app.route("/download_receipt/<int:challan_id>")
