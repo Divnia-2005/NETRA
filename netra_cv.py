@@ -1,9 +1,9 @@
-import cv2
-import numpy as np
+import cv2  # type: ignore
+import numpy as np  # type: ignore
 import os
 import time
 from datetime import datetime
-import requests
+import requests  # type: ignore
 
 # --- CONFIGURATION ---
 CROWD_THRESHOLD = 5  # Number of people to trigger alert
@@ -18,7 +18,7 @@ if not os.path.exists(SNAPSHOT_DIR):
 
 def start_netra_cv():
     # 1. Initialize Camera
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     if not cap.isOpened():
         print("Error: Could not open laptop webcam.")
         return
@@ -56,7 +56,7 @@ def start_netra_cv():
         box_color = (0, 0, 255) if is_crowd_alert else (0, 255, 0)
 
         # Draw Bounding Boxes
-        for (x, y, w, h) in rects:
+        for (x, y, w, h) in rects:  # type: ignore
             cv2.rectangle(frame, (x, y), (x + w, y + h), box_color, 2)
             cv2.putText(frame, "Person Detected", (x, y - 10), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 1)
@@ -79,7 +79,7 @@ def start_netra_cv():
         # --- EVIDENCE CAPTURE ---
         if is_crowd_alert:
             current_time = time.time()
-            if current_time - last_alert_time > ALERT_COOLDOWN:
+            if current_time - last_alert_time > ALERT_COOLDOWN:  # type: ignore
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = os.path.join(SNAPSHOT_DIR, f"alert_{timestamp}.jpg")
                 cv2.imwrite(filename, original_frame)

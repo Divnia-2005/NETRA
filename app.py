@@ -47,6 +47,8 @@ def get_db():
     try:
         cur = conn.cursor()
         cur.execute("SELECT event_date FROM public_entries LIMIT 1")
+        cur.fetchall()
+        cur.close()
     except:
         try:
              cur = conn.cursor()

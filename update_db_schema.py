@@ -1,6 +1,6 @@
-import mysql.connector
+import mysql.connector  # type: ignore
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # type: ignore
 
 load_dotenv(dotenv_path="credential.env")
 

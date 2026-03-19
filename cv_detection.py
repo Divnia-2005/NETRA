@@ -1,6 +1,6 @@
-import cv2
+import cv2  # type: ignore
 import datetime
-import requests
+import requests  # type: ignore
 import json
 import threading
 
@@ -38,7 +38,7 @@ def send_alert(frame):
         print(f"Failed to send alert: {e}")
 
 def start_detection():
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
     while True:
         ret, frame = cap.read()
