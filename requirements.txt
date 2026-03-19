@@ -13,3 +13,4 @@ deep-translator
 selenium
 webdriver-manager
 gunicorn==21.2.0
+razorpay
