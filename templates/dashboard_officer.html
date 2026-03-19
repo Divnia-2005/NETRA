@@ -225,11 +225,21 @@
 
     @keyframes scan {
       0% {
-        top: -10%;
+        top: 0%;
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      90% {
+        opacity: 1;
       }
 
       100% {
-        top: 110%;
+        top: 100%;
+        opacity: 0;
       }
     }
 
@@ -277,46 +287,6 @@
     .lang-opt:hover {
       background-color: rgba(19, 236, 91, 0.2);
       color: #13ec5b;
-    }
-
-    @keyframes scan {
-      0% {
-        top: 0%;
-        opacity: 0;
-      }
-
-      10% {
-        opacity: 1;
-      }
-
-      90% {
-        opacity: 1;
-      }
-
-      100% {
-        top: 100%;
-        opacity: 0;
-      }
-    }
-
-    @keyframes scan {
-      0% {
-        top: 0%;
-        opacity: 0;
-      }
-
-      10% {
-        opacity: 1;
-      }
-
-      90% {
-        opacity: 1;
-      }
-
-      100% {
-        top: 100%;
-        opacity: 0;
-      }
     }
   </style>
 </head>
@@ -1073,8 +1043,8 @@
               <img id="officerPicPreview" src="https://via.placeholder.com/120"
                 class="w-24 h-24 rounded-full object-cover border-2 border-green-400 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
               <div>
-                <h3 class="text-2xl font-bold">{{ session.user.name }}</h3>
-                <p class="text-green-400 font-mono text-sm uppercase">{{ session.user.role }}</p>
+                <h3 class="text-2xl font-bold">{{ session['user']['name'] }}</h3>
+                <p class="text-green-400 font-mono text-sm uppercase">{{ session['user']['role'] }}</p>
               </div>
             </div>
             <div class="space-y-4">
@@ -1082,12 +1052,12 @@
                 <label class="text-xs text-gray-500 ml-1">Full Name</label>
                 <input id="officerProfileName"
                   class="w-full glass p-3 rounded-xl border-white/10 outline-none focus:border-green-500"
-                  value="{{ session.user.name }}">
+                  value="{{ session['user']['name'] }}">
               </div>
               <div>
                 <label class="text-xs text-gray-500 ml-1">Email</label>
                 <input class="w-full glass p-3 rounded-xl border-white/5 bg-black/20 text-gray-400"
-                  value="{{ session.user.email }}" readonly>
+                  value="{{ session['user']['email'] }}" readonly>
               </div>
               <button onclick="saveOfficerProfile()"
                 class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-500 transition">
@@ -1330,41 +1300,7 @@
 
   <!-- JS -->
   <script>
-    /* ---------- NAVIGATION ---------- */
-    function showSection(sectionId, btn) {
-      console.log('Showing section:', sectionId); // Debug line
-
-      // 1. Hide all sections
-      document.querySelectorAll('.section').forEach(sec => {
-        sec.classList.add('hidden');
-      });
-
-      // 2. Remove active state from all buttons
-      document.querySelectorAll('.nav-btn').forEach(b => {
-        b.classList.remove('bg-green-500/10', 'text-green-400', 'border-l-4', 'border-green-500');
-        b.classList.add('text-gray-400', 'hover:bg-white/5');
-      });
-
-      // 3. Show target section
-      const targetSection = document.getElementById(sectionId);
-      if (targetSection) {
-        targetSection.classList.remove('hidden');
-        console.log('Section found and shown:', sectionId);
-      } else {
-        console.error('Section not found:', sectionId);
-      }
-
-      // 4. Set active state on clicked button
-      if (btn) {
-        btn.classList.remove('text-gray-400', 'hover:bg-white/5');
-        btn.classList.add('bg-green-500/10', 'text-green-400', 'border-l-4', 'border-green-500');
-      }
-
-      // 5. Special Case: Map Resize
-      if (sectionId === 'map' && typeof mapInstance !== 'undefined' && mapInstance) {
-        setTimeout(() => { mapInstance.invalidateSize(); }, 200);
-      }
-    }
+    /* ---------- NAVIGATION (first definition removed — canonical version below at line ~1615) ---------- */
 
     /* ---------- NEW FUNCTIONS ---------- */
 
@@ -1494,7 +1430,7 @@
     // 4. AI Alert Simulation
     async function simulateAIAlert() {
       try {
-        const kinds = ["loitering", "crowd_rapid", "restricted", "object"];
+        const kinds = ["loitering", "crowd_rapid", "object"];
         const k = kinds[Math.floor(Math.random() * kinds.length)];
 
         const res = await fetch('/api/simulate_ai_alert', {
@@ -1598,6 +1534,19 @@
         alert("SOS SENT! BACKUP INBOUND.");
         closeSOSModal();
       } catch (e) { alert("SOS FAILED. CALL HQ MANUALLY."); }
+    }
+
+    function closeSOSModal() {
+      const modal = document.getElementById('sosModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function enterFullScreen() {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
     }
 
     function toggleSidebar() {
@@ -2191,12 +2140,6 @@
       document.getElementById('caseDetailsModal').classList.add('hidden');
     }
 
-
-
-    function closeCaseDetailsModal() {
-      document.getElementById('caseDetailsModal').classList.add('hidden');
-    }
-
     /* --- UPLOAD LOGIC --- */
     function handleEvidenceSelection(input) {
       if (input.files && input.files[0]) {
@@ -2288,56 +2231,7 @@
     }
 
 
-    function cancelUpload() {
-      document.getElementById('evidenceUpload').value = "";
-      document.getElementById('evidenceTags').value = "";
-      document.getElementById('uploadPreview').classList.add('hidden');
-    }
-
-    async function uploadEvidence() {
-      const fileInput = document.getElementById('evidenceUpload');
-      const tags = document.getElementById('evidenceTags').value;
-
-      if (!fileInput.files[0]) return;
-      if (!currentCaseDbId) return alert("Case ID missing error.");
-
-      const formData = new FormData();
-      formData.append("file", fileInput.files[0]);
-      formData.append("case_db_id", currentCaseDbId);
-      formData.append("tags", tags);
-
-      const btn = event.target;
-      const originalText = btn.innerText;
-      btn.innerText = "Uploading...";
-      btn.disabled = true;
-
-      try {
-        const res = await fetch('/api/upload_evidence', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          // Refresh details
-          // We need the string case ID to re-call openCaseDetails or just reload. 
-          // Since openCaseDetails uses string ID and we only have int ID here easily 
-          // (Wait, we do have string ID in the title but easier to just reload page or fetch specific evidence row).
-          // Simplest: Close and Alert
-          alert("Evidence uploaded successfully!");
-          closeCaseDetailsModal();
-          // Or ideally: Reload the modal content.
-        } else {
-          alert("Upload failed: " + data.error);
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Server error during upload");
-      } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-      }
-    }
+    /* cancelUpload and uploadEvidence are defined above — duplicates removed */
 
 
 
@@ -2368,14 +2262,17 @@
 
     async function stopBuzzer() {
       try {
-        const res = await fetch('/api/stop_buzzer', {
-          method: 'POST'
-        });
+        const res = await fetch('/api/stop_buzzer', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          alert("Buzzer system has been deactivated.");
+          alert("✔ NETRA AI: Soft-Muting alarms for 5 minutes. Physical STOP signal sent to IoT.");
+        } else {
+          alert("⚠️ IoT Error: Could not reach ESP32 buzzer at index " + (data.error || "Unknown"));
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { 
+        console.error(e);
+        alert("❌ Network Error: Make sure the server and ESP32 are on the same Wi-Fi.");
+      }
     }
 
 

@@ -12,3 +12,4 @@ mysql-connector-python
 deep-translator
 selenium
 webdriver-manager
+gunicorn==21.2.0

@@ -226,11 +226,12 @@
     <h2 class="text-xl font-bold text-[#13ec5b]" data-i18n="netra_admin">NETRA Admin</h2>
     <!-- ADMIN PROFILE CARD -->
     <div class="flex items-center gap-3 bg-[#1a2e22] p-3 rounded">
-      <img id="profilePic" src="https://via.placeholder.com/60"
+      <img id="profilePic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='30' fill='%23134e4a'/%3E%3Ccircle cx='30' cy='24' r='10' fill='%2313ec5b'/%3E%3Cellipse cx='30' cy='50' rx='18' ry='12' fill='%2313ec5b'/%3E%3C/svg%3E"
         class="w-14 h-14 rounded-full object-cover border border-green-400">
       <div>
         <p id="adminName" class="font-semibold">Admin User</p>
         <p class="text-xs text-green-300">Administrator</p>
+
       </div>
     </div>
  
@@ -244,7 +245,6 @@
       <button onclick="showSection('monitoring', this)" class="nav-btn"> <span data-i18n="monitoring">Live Monitoring</span></button>
       <button onclick="showSection('health', this)" class="nav-btn"> <span data-i18n="health">System Health</span></button>
       <button onclick="showSection('config', this)" class="nav-btn"> <span data-i18n="config">Configuration</span></button>
-      <button onclick="showSection('restricted_zones', this); loadZones()" class="nav-btn"> <span data-i18n="restricted_zones">Restricted Zones</span></button>
       <button onclick="showSection('profile', this)" class="nav-btn"> <span data-i18n="profile">Profile</span></button>
     </nav>
 
@@ -410,11 +410,7 @@
             <span class="text-xl group-hover:scale-110 transition-transform">📄</span> <span class="text-sm font-medium"
               data-i18n="global_reports">Global Reports</span>
           </button>
-          <button onclick="triggerSimulation()"
-            class="glass hover:bg-red-900/20 text-red-500 border border-red-500/20 px-6 py-4 rounded-xl flex items-center gap-3 transition-all duration-300 group">
-            <span class="text-xl group-hover:scale-110 transition-transform animate-pulse">🚨</span> <span
-              class="text-sm font-bold">Simulate Intrusion</span>
-          </button>
+
         </div>
       </div>
 
@@ -661,22 +657,6 @@
       </div>
     </section>
 
-    <!-- RESTRICTED ZONES SECTION -->
-    <section id="restricted_zones" class="section hidden">
-      <h2 class="section-title" data-i18n="restricted_zones">Restricted Zone Management</h2>
-      <!-- ... (existing content) ... -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- ... (existing content) ... -->
-        <!-- Zone List -->
-        <div class="glass p-6 rounded-xl border border-white/5">
-          <h3 class="panel-title mb-4 text-gray-300" data-i18n="active_restricted_zones">Active Restricted Zones</h3>
-          <div id="zoneListContainer" class="space-y-3 h-80 overflow-y-auto custom-scrollbar">
-            <!-- Populated by JS -->
-            <p class="text-gray-500 italic text-center py-4" data-i18n="loading_zones">Loading zones...</p>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- NEW: PUBLIC ENTRIES SECTION -->
     <section id="public_entries" class="section hidden">
@@ -782,7 +762,6 @@
               onclick="shareAlert('{{ alert.message|e }}', '{{ alert.source|e }}')" data-i18n="share">Share</button>
             <button class="ack-btn" onclick="acknowledge(this, '{{ alert.id }}')" data-i18n="acknowledge">Acknowledge</button>
           </div>
-        </div>         </div>
         </div>
         {% endfor %}
         {% if not active_alerts %}
@@ -815,11 +794,6 @@
         <p class="text-gray-500 italic">No history available.</p>
         {% endif %}
       </div>
-    </section>
-
-    <p id="noAlerts" class="hidden text-green-400 mt-4">
-      ✅ No active alerts
-    </p>
     </section>
 
     <!-- MONITORING -->
@@ -991,8 +965,6 @@
           <h3 class="text-xs uppercase text-gray-400 tracking-wider font-bold mb-2" data-i18n="pending_payments">Pending Payments</h3>
           <p class="text-4xl font-bold text-red-400">{{ fines_stats.pending_count or 0 }}</p>
         </div>
-      </div>.pending_count or 0 }}</p>
-        </div>
       </div>
 
       <!-- Filter & Search -->
@@ -1148,7 +1120,7 @@
         <!-- Profile Picture -->
         <div class="flex flex-col items-center gap-4 mb-6">
           <div class="relative group">
-            <img id="profilePreview" src="https://via.placeholder.com/120"
+            <img id="profilePreview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Ccircle cx='60' cy='60' r='60' fill='%23134e4a'/%3E%3Ccircle cx='60' cy='48' r='20' fill='%2313ec5b'/%3E%3Cellipse cx='60' cy='100' rx='36' ry='24' fill='%2313ec5b'/%3E%3C/svg%3E"
               class="w-28 h-28 rounded-full object-cover border-4 border-white/5 group-hover:border-green-400 transition-all duration-300 shadow-xl">
             <div
               class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none">
@@ -1371,7 +1343,7 @@
       showSection("overview", document.querySelector(".nav-btn"));
       loadCharts();
       loadSystemConfig();
-      loadZones();
+
 
       if (localStorage.getItem("adminName")) {
         profileName.value = localStorage.getItem("adminName");
@@ -1384,6 +1356,118 @@
       if (localStorage.getItem("sensitivity")) sensitivity.value = localStorage.getItem("sensitivity");
       if (localStorage.getItem("threshold")) threshold.value = localStorage.getItem("threshold");
     };
+
+    /* ---------- USER MANAGEMENT ---------- */
+    async function updateUserStatus(userId, status) {
+      const labels = { approved: 'approve', rejected: 'reject', blocked: 'block' };
+      if (!confirm(`Are you sure you want to ${labels[status] || status} this user?`)) return;
+      try {
+        const res = await fetch('/api/update_user_status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: userId, status: status })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const row = document.getElementById(`user-row-${userId}`);
+          if (row) {
+            row.style.transition = 'opacity 0.4s';
+            row.style.opacity = '0';
+            setTimeout(() => row.remove(), 400);
+          }
+          // Show toast
+          const toast = document.createElement('div');
+          toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50 text-sm font-bold';
+          toast.innerText = `✔ User ${status} successfully`;
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (e) { alert('Network error. Please try again.'); }
+    }
+
+    async function updateUserRole(userId) {
+      const select = document.getElementById(`role-select-${userId}`);
+      if (!select) return;
+      const sub_role = select.value;
+      try {
+        const res = await fetch('/api/update_user_role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: userId, sub_role: sub_role })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const toast = document.createElement('div');
+          toast.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50 text-sm font-bold';
+          toast.innerText = `✔ Role updated to ${sub_role}`;
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (e) { alert('Network error.'); }
+    }
+
+    async function reassignCase(caseId) {
+      const select = document.getElementById(`transfer-select-${caseId}`);
+      if (!select || !select.value) return alert('Please select an officer to transfer to.');
+      const officerId = select.value;
+      try {
+        const res = await fetch('/api/reassign_case', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ case_id: caseId, officer_id: officerId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const toast = document.createElement('div');
+          toast.className = 'fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50 text-sm font-bold';
+          toast.innerText = '✔ Case reassigned successfully';
+          document.body.appendChild(toast);
+          setTimeout(() => { toast.remove(); location.reload(); }, 2000);
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (e) { alert('Network error.'); }
+    }
+
+    async function approvePublicEntry(entryId) {
+      try {
+        const res = await fetch('/api/approve_public_entry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entry_id: entryId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Unknown'));
+        }
+      } catch (e) { alert('Network error.'); }
+    }
+
+    async function sendMessage() {
+      const recipient = document.getElementById('msgRecipient').value;
+      const content = document.getElementById('msgContent').value.trim();
+      if (!content) return;
+      try {
+        const res = await fetch('/api/send_message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ receiver_id: recipient === 'all' ? null : recipient, content: content })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('msgContent').value = '';
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Could not send message'));
+        }
+      } catch (e) { alert('Network error.'); }
+    }
 
     /* ---------- OTHER UTILS ---------- */
     async function acknowledge(btn, alertId) {
@@ -1416,17 +1500,7 @@
       });
     }
 
-    async function loadZones() {
-      try {
-        const res = await fetch('/api/get_zones');
-        const zones = await res.json();
-        document.getElementById('zoneListContainer').innerHTML = zones.map(z => `
-          <div class="bg-white/5 p-3 rounded flex justify-between items-center border-l-2 border-red-500">
-            <div><p class="font-bold text-gray-200 text-sm">${z.name}</p></div>
-            <button onclick="deleteZone(${z.id})" class="text-gray-400 hover:text-red-500 text-lg">×</button>
-          </div>`).join('');
-      } catch (e) { }
-    }
+
   </script>
 
   <style>

@@ -10,20 +10,7 @@ def update_schema():
         )
         cur = conn.cursor()
 
-        # 1. Create Restricted Zones Table
-        print("Creating restricted_zones table...")
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS restricted_zones (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                coordinates TEXT, -- Storing JSON string or simple description for now
-                start_time TIME NOT NULL,
-                end_time TIME NOT NULL,
-                violation_type VARCHAR(100) NOT NULL,
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+
 
         # 2. Update Evidence Table (Add columns if they don't exist)
         print("Updating evidence table...")
@@ -38,10 +25,7 @@ def update_schema():
         except:
             print("Column review_status might already exist.")
 
-        try:
-             cur.execute("ALTER TABLE evidence ADD COLUMN zone_id INT DEFAULT NULL")
-        except:
-             print("Column zone_id might already exist.")
+
         
         try:
              cur.execute("ALTER TABLE evidence ADD COLUMN confidence_score FLOAT DEFAULT 0.0")

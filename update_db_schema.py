@@ -6,11 +6,13 @@ load_dotenv(dotenv_path="credential.env")
 
 def get_db():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="", # Assuming empty password as per app.py
-        database="Netra"
+        host=os.getenv("MYSQLHOST", "localhost"),
+        user=os.getenv("MYSQLUSER", "root"),
+        password=os.getenv("MYSQLPASSWORD", ""),
+        database=os.getenv("MYSQLDATABASE", "Netra"),
+        port=int(os.getenv("MYSQLPORT", 3306))
     )
+
 
 def ensure_columns():
     conn = get_db()
