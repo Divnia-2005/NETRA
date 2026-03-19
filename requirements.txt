@@ -14,3 +14,9 @@ selenium
 webdriver-manager
 gunicorn==21.2.0
 razorpay
+Flask
+gunicorn
+numpy
+opencv-python-headless
+razorpay
+xhtml2pdf
