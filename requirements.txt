@@ -19,4 +19,4 @@ gunicorn
 numpy
 opencv-python-headless
 razorpay
-xhtml2pdf
+
